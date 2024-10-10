@@ -18,7 +18,7 @@ ee_check() # For some reason, it's important to run this before initializing rig
 # rgee::ee_Initialize(user = 'crollinson@mortonarb.org', drive=T, project="urbanecodrought")
 rgee::ee_Initialize(user = 'crollinson@mortonarb.org', drive=T)
 path.google.CR <- "~/Google Drive/My Drive/UrbanEcoDrought/"
-path.google.share <- "~/Google Drive/Shared drives/Urban Ecological Drought/"
+path.google.share <- "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/"
 NDVIsave <- "UrbanEcoDrought_NDVI-LandscapeSensitivity"
 # GoogleFolderSave <- "UHI_Analysis_Output_Final_v2"
 assetHome <- ee_get_assethome()
@@ -243,3 +243,8 @@ for(LCTYPE in lcnames){
 
 
 # After all tasks have run, move them to the shared drive
+filesNOW <- dir(file.path("~/Google Drive/My Drive/", NDVIsave))
+for(FILE in filesNOW){
+  print(FILE)
+  file.copy(from=file.path("~/Google Drive/My Drive/", NDVIsave, FILE), to=file.path(path.google.share, "data/data_raw", FILE), overwrite=T, copy.mode=T)
+}
