@@ -239,3 +239,7 @@ for(LCTYPE in lcnames){
   extractByLC(imcol=l5Mosaic, landcover=LCTYPE, outfolder=NDVIsave, fileNamePrefix=paste0("Landsat5_", LCTYPE))
 }
 ##################### 
+
+
+
+# After all tasks have run, move them to the shared drive
