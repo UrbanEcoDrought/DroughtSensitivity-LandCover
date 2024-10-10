@@ -12,7 +12,11 @@
 
 library(rgee); library(raster); library(terra)
 ee_check() # For some reason, it's important to run this before initializing right now
-rgee::ee_Initialize(user = 'crollinson@mortonarb.org', drive=T, project="urbanecodrought")
+# ee$data$createAssetHome("users/crollinson")
+# ee$data$createAssetHome("projects/urbanecodrought")
+# ee_Initialize(project="urbanecodrought")
+# rgee::ee_Initialize(user = 'crollinson@mortonarb.org', drive=T, project="urbanecodrought")
+rgee::ee_Initialize(user = 'crollinson@mortonarb.org', drive=T)
 path.google.CR <- "~/Google Drive/My Drive/UrbanEcoDrought/"
 path.google.share <- "~/Google Drive/Shared drives/Urban Ecological Drought/"
 NDVIsave <- "UrbanEcoDrought_NDVI-LandscapeSensitivity"
