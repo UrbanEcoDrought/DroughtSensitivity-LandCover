@@ -5,6 +5,7 @@
 # script to explore NDVI time series for the land cover classes of the Chicago region
 library(ggplot2)
 library(lubridate)
+library(ggcorrplot)
 
 # Setting the file paths. This may be different for your computer.
 # Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought")
@@ -61,10 +62,12 @@ summary(ChicagolandTemp)
 
 dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTemp)
 
+chiMet <- merge(ChicagolandTemp, ChicagolandSPI, all=T)
+chiMet <- merge(chiMet, ChicagolandSPEI , all=T)
+summary(chiMet)
+dim(chiMet)
 
-ndviMet <- merge(ndvi.all, ChicagolandTemp, all.x=T, all.y=F)
-ndviMet <- merge(ndviMet, ChicagolandSPI, all.x=T, all.y=F)
-ndviMet <- merge(ndviMet, ChicagolandSPEI, all.x=T, all.y=F)
+ndviMet <- merge(ndvi.all, chMet, all.x=T, all.y=F)
 summary(ndviMet)
 
 # saving ndviMet to the data drive so that predictors are paired together with the NDVI data
@@ -79,6 +82,20 @@ LCtypes <- unique(ndviMet$landcover)
 timescales <- c("14d", "30d", "60d", "90d")
 varsMet <- c(paste0("TMIN", timescales), paste0("TMAX", timescales), paste0("X", timescales, ".SPI"), paste0("X", timescales, ".SPEI"))
 names(ndviMet)
+
+metCor <- cor(chiMet[,varsMet], use="pairwise.complete.obs")
+summary(metCor)
+
+metCov <- cov(chiMet[,varsMet], use="pairwise.complete.obs")
+summary(metCov)
+
+png(file.path(path.figs, paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
+ggcorrplot(metCor, type="lower", lab=T)
+dev.off()
+
+png(file.path(path.figs, paste0("MetVar_CovarPlot.png")), height=8, width=8, units="in", res=320)
+ggcorrplot(metCov, type="lower", lab=T)
+dev.off()
 
 listAIC <- listRMSE <- listR2 <- list()
 listAICd <- listRMSEd <- listR2d <- list()
@@ -421,6 +438,8 @@ ggplot(data=aggModel, aes(x=model, y=dR2) ) +
   geom_errorbar(aes(ymin=dR2 - dR2.sd, ymax=dR2+dR2.sd), linewidth=0.2) +
   theme_bw()
 dev.off()
+
+# Now calculating the average rank of a variable for each landcover class; then we'll 
 #########################################
 
 
