@@ -80,6 +80,9 @@ timescales <- c("14d", "30d", "60d", "90d")
 varsMet <- c(paste0("TMIN", timescales), paste0("TMAX", timescales), paste0("X", timescales, ".SPI"), paste0("X", timescales, ".SPEI"))
 names(ndviMet)
 
+listAIC <- listRMSE <- listR2 <- list()
+listAICd <- listRMSEd <- listR2d <- list()
+
 for(LC in LCtypes){
   print(LC)
   # Subset the data 
@@ -179,6 +182,10 @@ for(LC in LCtypes){
   write.csv(modOutR2, file.path(pathSave, paste0("DailyModel_VarSelection_R2c_", LC, ".csv")), row.names=F)
   write.csv(modOutRMSE, file.path(pathSave, paste0("DailyModel_VarSelection_RMSE_", LC, ".csv")), row.names=F)
   
+  listAIC[[LC]] <- modOutAIC
+  listRMSE[[LC]] <- modOutRMSE
+  listR2[[LC]] <- modOutR2
+  
   # Calculating dAIC
   dAIC <- modOutAIC
   # Negative values indicate improvement
@@ -252,9 +259,169 @@ for(LC in LCtypes){
   print(plot.dR2)
   dev.off()
   
+  listAICd[[LC]] <- dAIC
+  listRMSEd[[LC]] <- dRMSE
+  listR2d[[LC]] <- dR2
   
   print("") # Just kicking the label to a new line to make things cleaner
 } # End LC loop
 #########################################
+
+
+#########################################
+# Comparing across days LCs and days
+#########################################
+AICall <- dplyr::bind_rows(listAIC)
+RMSEall <- dplyr::bind_rows(listRMSE)
+R2all <- dplyr::bind_rows(listR2)
+
+dAICall <- dplyr::bind_rows(listAICd)
+dRMSEall <- dplyr::bind_rows(listRMSEd)
+dR2all <- dplyr::bind_rows(listR2d)
+
+summary(R2all)
+
+dRMSEperc <- dRMSEall
+dRMSEperc[,c("modIntOnly", "modLag", varsMet)] <- dRMSEall[,c("modIntOnly", "modLag", varsMet)]/RMSEall[,c("modIntOnly", "modLag", varsMet)]
+summary(dRMSEperc)
+
+modStatsAll <- stack(dAICall[,c("modIntOnly", "modLag", varsMet)])
+names(modStatsAll) <- c("dAIC", "model")
+modStatsAll[,c("landcover", "yday")] <- AICall[,c("landcover", "yday")]
+modStatsAll$RMSE <- stack(RMSEall[,c("modIntOnly", "modLag", varsMet)])[,"values"]
+modStatsAll$dRMSE <- stack(dRMSEall[,c("modIntOnly", "modLag", varsMet)])[,"values"]
+modStatsAll$dRMSEper <- stack(dRMSEperc[,c("modIntOnly", "modLag", varsMet)])[,"values"]
+modStatsAll$R2 <- stack(R2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
+modStatsAll$dR2 <- stack(dR2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
+summary(modStatsAll)
+
+plot.dAIC <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
+  ggtitle("Change AIC") +
+  facet_wrap(~landcover) +
+  geom_tile(aes(x=yday, y=model, fill=dAIC)) +
+  scale_fill_gradient2(low="green4", high="orange2", mid="gray80", midpoint=0) +
+  scale_x_continuous(expand=c(0,0)) +
+  theme_bw()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dAIC.png")), height=9, width=10, units="in", res=320)
+plot.dAIC
+dev.off()
+
+plot.dRMSE <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
+  ggtitle("Change RMSE") +
+  facet_wrap(~landcover) +
+  geom_tile(aes(x=yday, y=model, fill=dRMSE)) +
+  scale_fill_gradient2(low="green4", high="orange2", mid="gray80", midpoint=0) +
+  scale_x_continuous(expand=c(0,0)) +
+  theme_bw()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dRMSE.png")), height=9, width=10, units="in", res=320)
+plot.dRMSE
+dev.off()
+
+plot.RMSE <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
+  ggtitle("RMSE") +
+  facet_wrap(~landcover) +
+  geom_tile(aes(x=yday, y=model, fill=RMSE)) +
+  scale_fill_gradient2(low="green4", high="orange2", mid="gray80", midpoint=median(modStatsAll$RMSE)) +
+  scale_x_continuous(expand=c(0,0)) +
+  theme_bw()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_RMSE.png")), height=9, width=10, units="in", res=320)
+plot.RMSE
+dev.off()
+
+plot.R2 <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
+  ggtitle("conditional R2 (fixed + random)") +
+  facet_wrap(~landcover) +
+  geom_tile(aes(x=yday, y=model, fill=R2)) +
+  scale_fill_gradient2(high="green4", low="orange2", mid="gray80", midpoint=median(modStatsAll$R2)) +
+  scale_x_continuous(expand=c(0,0)) +
+  theme_bw()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_R2.png")), height=9, width=10, units="in", res=320)
+plot.R2
+dev.off()
+
+plot.dR2 <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
+  ggtitle("Change in conditional R2 (fixed + random)") +
+  facet_wrap(~landcover) +
+  geom_tile(aes(x=yday, y=model, fill=dR2)) +
+  scale_fill_gradient2(high="green4", low="orange2", mid="gray80", midpoint=0) +
+  scale_x_continuous(expand=c(0,0)) +
+  theme_bw()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2.png")), height=9, width=10, units="in", res=320)
+plot.dR2
+dev.off()
+
+# Aggregating across LC types & Days to get a mean value for each model --> focusing on CHANGE
+aggModelLC <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=mean)
+aggModelLC[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
+
+summary(aggModelLC)
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModelLC) +
+  coord_flip() +
+  geom_boxplot(aes(x=model, y=dAIC), fill="gray50") +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dRMSE.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModelLC) +
+  coord_flip() +
+  geom_boxplot(aes(x=model, y=dRMSE), fill="gray50") +
+  theme_bw()
+dev.off()
+
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dR2.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModelLC) +
+  coord_flip() +
+  geom_boxplot(aes(x=model, y=dR2), fill="gray50") +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_Landcover_dRMSE.png")), height=10, width=8, units="in", res=220)
+ggplot(data=aggModelLC, aes(x=model, y=dRMSE) ) +
+  facet_wrap(~landcover, scales="free_x") +
+  coord_flip() +
+  geom_bar(stat="identity", fill="gray60") +
+  # geom_errorbar(aes(ymin=dRMSE - dRMSE.sd, ymax=dRMSE+dRMSE.sd), linewidth=0.2) +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_Landcover_dR2.png")), height=10, width=8, units="in", res=220)
+ggplot(data=aggModelLC, aes(x=model, y=dR2) ) +
+  facet_wrap(~landcover, scales="free_x") +
+  coord_flip() +
+  geom_bar(stat="identity", fill="gray60") +
+  # geom_errorbar(aes(ymin=dR2 - dR2.sd, ymax=dR2+dR2.sd), linewidth=0.2) +
+  theme_bw()
+dev.off()
+
+
+aggModel <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model, data=aggModelLC, FUN=mean)
+aggModel[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model, data=aggModelLC, FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
+summary(aggModel)
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Average_byModel_dRMSE.png")), height=10, width=8, units="in", res=220)
+ggplot(data=aggModel, aes(x=model, y=dRMSE) ) +
+  coord_flip() +
+  geom_bar(stat="identity", fill="gray60") +
+  geom_errorbar(aes(ymin=dRMSE - dRMSE.sd, ymax=dRMSE+dRMSE.sd), linewidth=0.2) +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Average_byModel_dR2.png")), height=10, width=8, units="in", res=220)
+ggplot(data=aggModel, aes(x=model, y=dR2) ) +
+  coord_flip() +
+  geom_bar(stat="identity", fill="gray60") +
+  geom_errorbar(aes(ymin=dR2 - dR2.sd, ymax=dR2+dR2.sd), linewidth=0.2) +
+  theme_bw()
+dev.off()
+#########################################
+
 
 
