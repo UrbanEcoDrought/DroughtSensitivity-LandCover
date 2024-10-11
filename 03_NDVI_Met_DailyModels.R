@@ -309,6 +309,8 @@ modStatsAll$R2 <- stack(R2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
 modStatsAll$dR2 <- stack(dR2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
 summary(modStatsAll)
 
+write.csv(modStatsAll, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")), row.names=F)
+
 plot.dAIC <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   ggtitle("Change AIC") +
   facet_wrap(~landcover) +
@@ -374,6 +376,8 @@ dev.off()
 # ---------------------
 aggModelLC <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=mean)
 aggModelLC[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
+
+write.csv(aggModelLC, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), row.names=F)
 
 # Now calculating the average rank of a variable for each landcover class
 summary(aggModelLC)
