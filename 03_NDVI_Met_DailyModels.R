@@ -86,16 +86,13 @@ names(ndviMet)
 metCor <- cor(chiMet[,varsMet], use="pairwise.complete.obs")
 summary(metCor)
 
-metCov <- cov(chiMet[,varsMet], use="pairwise.complete.obs")
-summary(metCov)
+# metCov <- cov(chiMet[,varsMet], use="pairwise.complete.obs")
+# summary(metCov)
 
 png(file.path(path.figs, paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
 ggcorrplot(metCor, type="lower", lab=T)
 dev.off()
 
-png(file.path(path.figs, paste0("MetVar_CovarPlot.png")), height=8, width=8, units="in", res=320)
-ggcorrplot(metCov, type="lower", lab=T)
-dev.off()
 
 listAIC <- listRMSE <- listR2 <- list()
 listAICd <- listRMSEd <- listR2d <- list()
@@ -286,7 +283,7 @@ for(LC in LCtypes){
 
 
 #########################################
-# Comparing across days LCs and days
+# Comparing across days LCs and days ----
 #########################################
 AICall <- dplyr::bind_rows(listAIC)
 RMSEall <- dplyr::bind_rows(listRMSE)
@@ -372,16 +369,49 @@ png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2
 plot.dR2
 dev.off()
 
-# Aggregating across LC types & Days to get a mean value for each model --> focusing on CHANGE
+# ---------------------
+# Aggregating across LC types & Days to get a mean value for each model --> focusing on CHANGE ----
+# ---------------------
 aggModelLC <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=mean)
 aggModelLC[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
 
+# Now calculating the average rank of a variable for each landcover class
+summary(aggModelLC)
+aggModelLC[,c("rank.dAIC", "rank.dRMSE", "rank.dR2")] <- NA
+for(LC in LCtypes){
+  rowsLC <- which(aggModelLC$landcover==LC)
+  datLC <- aggModelLC[rowsLC,]
+  # datLC[, c("model", "dRMSE")]
+  
+  datLC[order(datLC$dAIC), c("rank.dAIC")] <- 1:nrow(datLC)
+  datLC[order(datLC$dRMSE), c("rank.dRMSE")] <- 1:nrow(datLC)
+  datLC[order(datLC$dR2, decreasing = T), c("rank.dR2")] <- 1:nrow(datLC)
+  # datLC[,c("model", "dR2", "rank.dR2")]
+  
+  aggModelLC[rowsLC,c("rank.dAIC", "rank.dRMSE", "rank.dR2")] <- datLC[,c("rank.dAIC", "rank.dRMSE", "rank.dR2")]
+}
 summary(aggModelLC)
 
 png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=dAIC), fill="gray50") +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dRMSE.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModelLC) +
+  coord_flip() +
+  geom_boxplot(aes(x=model, y=rank.dRMSE), fill="gray50") +
+  scale_y_continuous(breaks=c(1, 5, 10, 15, 17), labels=c("1\nBest", 5, 10, 15, "17\nLowest")) +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dR2.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModelLC) +
+  coord_flip() +
+  geom_boxplot(aes(x=model, y=rank.dR2), fill="gray50") +
+  scale_y_continuous(breaks=c(1, 5, 10, 15, 17), labels=c("1\nBest", 5, 10, 15, "17\nLowest")) +
   theme_bw()
 dev.off()
 
@@ -418,9 +448,11 @@ ggplot(data=aggModelLC, aes(x=model, y=dR2) ) +
   theme_bw()
 dev.off()
 
-
-aggModel <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model, data=aggModelLC, FUN=mean)
-aggModel[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model, data=aggModelLC, FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
+# ---------------------
+# Aggregating to just the model/met var ----
+# ---------------------
+aggModel <- aggregate(cbind(dAIC, dRMSE, dR2, rank.dAIC, rank.dRMSE, rank.dR2) ~ model, data=aggModelLC, FUN=mean)
+aggModel[,c("dAIC.sd", "dRMSE.sd", "dR2.sd", "rank.dAIC.sd", "rank.dRMSE.sd", "rank.dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2, rank.dAIC, rank.dRMSE, rank.dR2) ~ model, data=aggModelLC, FUN=sd)[,c("dAIC", "dRMSE", "dR2", "rank.dAIC", "rank.dRMSE", "rank.dR2")]
 summary(aggModel)
 
 png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Average_byModel_dRMSE.png")), height=10, width=8, units="in", res=220)
@@ -431,6 +463,25 @@ ggplot(data=aggModel, aes(x=model, y=dRMSE) ) +
   theme_bw()
 dev.off()
 
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank_dRMSE.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModel, aes(x=model, y=rank.dRMSE, fill=rank.dRMSE) ) +
+  coord_flip() +
+  geom_bar(stat="identity") +
+  geom_errorbar(aes(ymin=rank.dRMSE - rank.dRMSE.sd, ymax=rank.dRMSE+rank.dRMSE.sd), linewidth=0.2) +
+  scale_fill_gradient2(low="green4", high="orange2", mid="gray80", midpoint=median(aggModel$rank.dRMSE)) +
+  theme_bw()
+dev.off()
+
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank_d2.png")), height=8, width=8, units="in", res=220)
+ggplot(data=aggModel, aes(x=model, y=rank.dR2, fill=rank.dR2) ) +
+  coord_flip() +
+  geom_bar(stat="identity") +
+  geom_errorbar(aes(ymin=rank.dR2 - rank.dR2.sd, ymax=rank.dR2+rank.dR2.sd), linewidth=0.2) +
+  scale_fill_gradient2(low="green4", high="orange2", mid="gray80", midpoint=median(aggModel$rank.dR2)) +
+  theme_bw()
+dev.off()
+
+
 png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Average_byModel_dR2.png")), height=10, width=8, units="in", res=220)
 ggplot(data=aggModel, aes(x=model, y=dR2) ) +
   coord_flip() +
@@ -439,7 +490,6 @@ ggplot(data=aggModel, aes(x=model, y=dR2) ) +
   theme_bw()
 dev.off()
 
-# Now calculating the average rank of a variable for each landcover class; then we'll 
 #########################################
 
 
