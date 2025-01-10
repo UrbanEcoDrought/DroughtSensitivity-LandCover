@@ -62,8 +62,13 @@ aggAdd2$dR2.rank[order(aggAdd2$dR2, decreasing=T)] <- 1:nrow(aggAdd2)
 aggAdd2$dRMSE.rank[order(aggAdd2$dRMSE, decreasing=F)] <- 1:nrow(aggAdd2)
 aggAdd2
 
+aggAdd2[grep("SPI", aggAdd2$DroughtVar),]
+aggAdd2[grep("SPEI", aggAdd2$DroughtVar),]
+
 # Of interactive models, 30dSPEI x TMIN60d is the best by many metrics, but not strong support for improvement based on AIC; R2 improvements rel to additive in the ballpark of 0.025
 # Of additive models: 14dSPEI x TMAX30d ranks best for dR2 & dRMSE; next best is 14dSPEI x TMAX60dl not strong support via AIC, but R2 improvements rel to lag-only in ballpark of 0.05
+# The best performing SPI model is actually 30-d SPI with 60-d TMAX
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -71,6 +76,7 @@ aggAdd2
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 LCtypes <- unique(ndviMet$landcover)
 modOutList <- list()
+modOutListSPI <- list()
 for(LC in LCtypes){
   print(LC)
   # Subset the data to a single land cover type
@@ -195,6 +201,7 @@ for(LC in LCtypes){
 modOutAll <- dplyr::bind_rows(modOutList)
 summary(modOutAll)
 
+
 effectStack <- stack(modOutAll[,grep("tVal", names(mod.out))])
 names(effectStack) <- c("tVal", "effect")
 effectStack[,c("doy", "landcover")] <- modOutAll[,c("yday", "landcover")]
@@ -258,5 +265,51 @@ dev.off()
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Follow-up Analysis----
 # Alternate way of visualizing -- partial effects (coeficient x (mean?)value -- give impact in NDVI space) --> that would get away from stat. sig. and into acctual effect space
+# Partial effects will be the model coefficient multiplied by predictor value; For met partial effects, it will be the climatic norm
 # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Reading in our met vars
+ChicagolandSPI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPI.csv"))
+ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPEI.csv"))
+ChicagolandTemp <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_Temps.csv"))
+
+# create column with date in ISO format; making it lowercase "date" so that it merges easier
+ChicagolandSPI$date <- as.Date(ChicagolandSPI$Date, "%m/%d/%Y")
+ChicagolandSPI$yday <- lubridate::yday(ChicagolandSPI$date)
+
+ChicagolandSPEI$date <- as.Date(ChicagolandSPEI$Date, "%m/%d/%Y")
+ChicagolandSPEI$yday <- lubridate::yday(ChicagolandSPEI$date)
+
+ChicagolandTemp$date <- as.Date(ChicagolandTemp$Date, "%m/%d/%Y")
+ChicagolandTemp$yday <- lubridate::yday(ChicagolandTemp$date)
+
+summary(ChicagolandSPI)
+summary(ChicagolandSPEI)
+summary(ChicagolandTemp)
+length(unique(ChicagolandSPEI$yday)); length(unique(ChicagolandSPI$yday)); length(unique(ChicagolandTemp$yday))
+
+dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTemp)
+
+# Combining met data together in a single data frame
+chiMet <- merge(ChicagolandTemp, ChicagolandSPI, all=T)
+chiMet <- merge(chiMet, ChicagolandSPEI , all=T)
+# chiMet$yday <- lubridate::yday(chiMet$date)
+# chiMet$year <- lubridate::year(chiMet$date)
+chiMet <- chiMet[!is.na(chiMet$date),]
+summary(chiMet)
+length(unique(chiMet$yday))
+head(chiMet[is.na(chiMet$date),])
+
+head(chiMet[chiMet$yday>80 & chiMet$yday<90,])
+
+# Gettign the climatic norm to get our met partial effects
+chiMetNorms <- aggregate(cbind(X14d.SPEI, TMAX30d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
+summary(chiMetNorms)
+
+dim(chiMetNorms); dim(modOutAll)
+
+# Once we have the met partial effects, we'll merge the climate norm data frames in to mod.out and then multiple coef.X14dSPEI by X14dSPEI to get the partial effect in NDVI units; (same thing for temp partial effects)
+
+write.csv(modOutAll, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_AllLandcovers.csv")), row.names=F)
+
 # # # # # # # # # # # # # # # # # # # # # # # # # 
+
