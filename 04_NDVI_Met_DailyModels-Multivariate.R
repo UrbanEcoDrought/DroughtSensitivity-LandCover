@@ -30,8 +30,8 @@ summary(modStatsAll)
 # Based on the corr plots, temperature variables are fairly highly correlated with each other as are SPI/SPEI.
 # 90 temp vars correlate less with shorter-term
 # Checking the stats for each var to figure out where to start
-aggLC <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + landcover, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag"),], FUN=mean)
-aggYDAY <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + yday, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag"),], FUN=mean)
+aggLC <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + landcover, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean)
+aggYDAY <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + yday, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean)
 
 
 aggLC2 <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model, data=aggLC, FUN=mean)
@@ -55,13 +55,13 @@ mean(aggLC2$RankComb[grep("TMIN", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPEI", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPI", aggLC2$model)])
 
-# Looking across variables and temporal scales, SPEI has our best rank; TMAX slightly outperforms TMIN
-# 14-day SPEI is the best in both R2 & RMSE, so lets definitely start with that in our model and combine it with 30-day TMAX, which is the highest temp predictor; we'll test by itself as well as interactions
-# We'll also compare against 14-day SPI since that's easier to calculate and all of the differences are pretty subtle.
+# Looking across variables and temporal scales, SPEI and SPI are closer with timescale having a stronger "singla"; TMAX & TMIN behave similarly
+# 30-day SPEI is the best in both R2 & RMSE with 30-day SPI in a close second; 14 days, so lets definitely start with that in our model and combine it with 30-day Tmin & Tmax; TMAX, which is the highest temp predictor; we'll test by itself as well as interactions
+
 
 LCtypes <- unique(ndviMet$landcover)
 varsDrought <- c("X14d.SPEI", "X30d.SPEI", "X14d.SPI", "X30d.SPI")
-varsTemp <- c("TMAX30d", "TMAX60d", "TMIN30d", "TMIN60d")
+varsTemp <- c("TMAX14d", "TMAX30d", "TMAX60d", "TMIN30d", "TMIN60d")
 modType <- c("additive", "interaction")
 
 # Creating a dataframe with all permutations and giving it names

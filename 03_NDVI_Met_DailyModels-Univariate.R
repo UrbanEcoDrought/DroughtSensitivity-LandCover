@@ -1,15 +1,11 @@
 # Creating a clean script to re-do the daily correlation modeling and do some prediction from it
-
-
-
-# script to explore NDVI time series for the land cover classes of the Chicago region
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
 
 # Setting the file paths. This may be different for your computer.
-Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
-# Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
 path.NDVI <- file.path(google.drive, "data", "data_raw")
@@ -73,12 +69,12 @@ ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F)
 summary(ndviMet)
 
 # saving ndviMet to the data drive so that predictors are paired together with the NDVI data
-# saveRDS(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.RDS"))
-# write.csv(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.csv"), row.names=F)
+saveRDS(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.RDS"))
+write.csv(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.csv"), row.names=F)
 
-# saving some local files for Ross re-introduction runs
-saveRDS(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.RDS"))
-write.csv(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.csv"), row.names=F)
+# # saving some local files for Ross re-introduction runs
+# saveRDS(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.RDS"))
+# write.csv(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.csv"), row.names=F)
 
 #########################################
 # Daily model MEGAloop ----
@@ -202,14 +198,14 @@ for(LC in LCtypes){
   # summary(modOutRMSE)
   # summary(modOutR2)
 
-  # write.csv(modOutAIC, file.path(pathSave, paste0("DailyModel_VarSelection_AIC_", LC, ".csv")), row.names=F)
-  # write.csv(modOutR2, file.path(pathSave, paste0("DailyModel_VarSelection_R2c_", LC, ".csv")), row.names=F)
-  # write.csv(modOutRMSE, file.path(pathSave, paste0("DailyModel_VarSelection_RMSE_", LC, ".csv")), row.names=F)
-  
+  write.csv(modOutAIC, file.path(pathSave, paste0("DailyModel_VarSelection_AIC_", LC, ".csv")), row.names=F)
+  write.csv(modOutR2, file.path(pathSave, paste0("DailyModel_VarSelection_R2c_", LC, ".csv")), row.names=F)
+  write.csv(modOutRMSE, file.path(pathSave, paste0("DailyModel_VarSelection_RMSE_", LC, ".csv")), row.names=F)
+
   # saving local copies
-  write.csv(modOutAIC, file.path("processed_data", paste0("DailyModel_VarSelection_AIC_", LC, ".csv")), row.names=F)
-  write.csv(modOutR2, file.path("processed_data", paste0("DailyModel_VarSelection_R2c_", LC, ".csv")), row.names=F)
-  write.csv(modOutRMSE, file.path("processed_data", paste0("DailyModel_VarSelection_RMSE_", LC, ".csv")), row.names=F)
+  # write.csv(modOutAIC, file.path("processed_data", paste0("DailyModel_VarSelection_AIC_", LC, ".csv")), row.names=F)
+  # write.csv(modOutR2, file.path("processed_data", paste0("DailyModel_VarSelection_R2c_", LC, ".csv")), row.names=F)
+  # write.csv(modOutRMSE, file.path("processed_data", paste0("DailyModel_VarSelection_RMSE_", LC, ".csv")), row.names=F)
   
   listAIC[[LC]] <- modOutAIC
   listRMSE[[LC]] <- modOutRMSE
@@ -237,9 +233,9 @@ for(LC in LCtypes){
     theme_bw()
   
   
-  # png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_", LC, "_dAIC.png")), height=6, width=10, units="in", res=320)
+  png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_", LC, "_dAIC.png")), height=6, width=10, units="in", res=320)
   # saving locally
-  png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_", LC, "_dAIC.png")), height=6, width=10, units="in", res=320)
+  # png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_", LC, "_dAIC.png")), height=6, width=10, units="in", res=320)
   print(plot.dAIC)
   dev.off()
   
@@ -263,8 +259,8 @@ for(LC in LCtypes){
     scale_x_continuous(expand=c(0,0)) +
     theme_bw()
   
-  # png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_", LC, "_dRMSE.png")), height=6, width=10, units="in", res=320)
-  png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_", LC, "_dRMSE.png")), height=6, width=10, units="in", res=320)
+  png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_", LC, "_dRMSE.png")), height=6, width=10, units="in", res=320)
+  # png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_", LC, "_dRMSE.png")), height=6, width=10, units="in", res=320)
   print(plot.dRMSE)
   dev.off()
   
@@ -328,8 +324,8 @@ modStatsAll$R2 <- stack(R2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
 modStatsAll$dR2 <- stack(dR2all[,c("modIntOnly", "modLag", varsMet)])[,"values"]
 summary(modStatsAll)
 
-# write.csv(modStatsAll, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")), row.names=F)
-write.csv(modStatsAll, file.path("processed_data", paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")), row.names=F)
+write.csv(modStatsAll, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")), row.names=F)
+# write.csv(modStatsAll, file.path("processed_data", paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")), row.names=F)
 
 plot.dAIC <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   ggtitle("Change AIC") +
@@ -339,8 +335,8 @@ plot.dAIC <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   scale_x_continuous(expand=c(0,0)) +
   theme_bw()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dAIC.png")), height=9, width=10, units="in", res=320)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dAIC.png")), height=9, width=10, units="in", res=320)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dAIC.png")), height=9, width=10, units="in", res=320)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dAIC.png")), height=9, width=10, units="in", res=320)
 plot.dAIC
 dev.off()
 
@@ -352,8 +348,8 @@ plot.dRMSE <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   scale_x_continuous(expand=c(0,0)) +
   theme_bw()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dRMSE.png")), height=9, width=10, units="in", res=320)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dRMSE.png")), height=9, width=10, units="in", res=320)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dRMSE.png")), height=9, width=10, units="in", res=320)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dRMSE.png")), height=9, width=10, units="in", res=320)
 plot.dRMSE
 dev.off()
 
@@ -365,8 +361,8 @@ plot.RMSE <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   scale_x_continuous(expand=c(0,0)) +
   theme_bw()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_RMSE.png")), height=9, width=10, units="in", res=320)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_RMSE.png")), height=9, width=10, units="in", res=320)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_RMSE.png")), height=9, width=10, units="in", res=320)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_RMSE.png")), height=9, width=10, units="in", res=320)
 plot.RMSE
 dev.off()
 
@@ -378,8 +374,8 @@ plot.R2 <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   scale_x_continuous(expand=c(0,0)) +
   theme_bw()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_R2.png")), height=9, width=10, units="in", res=320)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_R2.png")), height=9, width=10, units="in", res=320)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_R2.png")), height=9, width=10, units="in", res=320)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_R2.png")), height=9, width=10, units="in", res=320)
 plot.R2
 dev.off()
 
@@ -391,8 +387,8 @@ plot.dR2 <- ggplot(data=modStatsAll[modStatsAll$model!="modIntOnly",]) +
   scale_x_continuous(expand=c(0,0)) +
   theme_bw()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2.png")), height=9, width=10, units="in", res=320)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2.png")), height=9, width=10, units="in", res=320)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2.png")), height=9, width=10, units="in", res=320)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2.png")), height=9, width=10, units="in", res=320)
 plot.dR2
 dev.off()
 
@@ -402,8 +398,8 @@ dev.off()
 aggModelLC <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=mean)
 aggModelLC[,c("dAIC.sd", "dRMSE.sd", "dR2.sd")] <- aggregate(cbind(dAIC, dRMSE, dR2) ~ model + landcover, data=modStatsAll[modStatsAll$model!="modIntOnly",], FUN=sd)[,c("dAIC", "dRMSE", "dR2")]
 
-# write.csv(aggModelLC, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), row.names=F)
-write.csv(aggModelLC, file.path("processed_data", paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), row.names=F)
+write.csv(aggModelLC, file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), row.names=F)
+# write.csv(aggModelLC, file.path("processed_data", paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), row.names=F)
 
 # Now calculating the average rank of a variable for each landcover class
 summary(aggModelLC)
@@ -422,8 +418,8 @@ for(LC in LCtypes){
 }
 summary(aggModelLC)
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dAIC.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=dAIC), fill="gray50") +
@@ -431,8 +427,8 @@ ggplot(data=aggModelLC) +
   theme_bw()
 dev.off()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dRMSE.png")), height=8, width=8, units="in", res=220)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dRMSE.png")), height=8, width=8, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dRMSE.png")), height=8, width=8, units="in", res=220)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dRMSE.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=rank.dRMSE), fill="gray50") +
@@ -441,8 +437,8 @@ ggplot(data=aggModelLC) +
   theme_bw()
 dev.off()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dR2.png")), height=8, width=8, units="in", res=220)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dR2.png")), height=8, width=8, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dR2.png")), height=8, width=8, units="in", res=220)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_Rank-Boxplot_dR2.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=rank.dR2), fill="gray50") +
@@ -451,8 +447,8 @@ ggplot(data=aggModelLC) +
   theme_bw()
 dev.off()
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dRMSE.png")), height=8, width=8, units="in", res=220)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dRMSE.png")), height=8, width=8, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dRMSE.png")), height=8, width=8, units="in", res=220)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dRMSE.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=dRMSE), fill="gray50") +
@@ -461,8 +457,8 @@ ggplot(data=aggModelLC) +
 dev.off()
 
 
-# png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dR2.png")), height=8, width=8, units="in", res=220)
-png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dR2.png")), height=8, width=8, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dR2.png")), height=8, width=8, units="in", res=220)
+# png(file.path("figures", paste0("NDVI-ModelSelection-Univariate_AverageYDAY_dR2.png")), height=8, width=8, units="in", res=220)
 ggplot(data=aggModelLC) +
   coord_flip() +
   geom_boxplot(aes(x=model, y=dR2), fill="gray50") +

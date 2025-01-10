@@ -29,7 +29,7 @@ modStatsAll$TempVar <- as.factor(modStatsAll$TempVar)
 modStatsAll$modelType <- as.factor(modStatsAll$modelType)
 summary(modStatsAll)
 
-aggLC <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType + landcover, data=modStatsAll[!modStatsAll$model %in% c("modLag"),], FUN=mean, na.rm=T)
+aggLC <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType + landcover, data=modStatsAll[!modStatsAll$model %in% c("modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean, na.rm=T)
 aggLC2 <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType, data=aggLC, FUN=mean, na.rm=T)
 aggLC2$dAIC.rank[order(aggLC2$dAIC, decreasing=F)] <- 1:nrow(aggLC2)
 aggLC2$dR2.rank[order(aggLC2$dR2, decreasing=T)] <- 1:nrow(aggLC2)
@@ -53,6 +53,8 @@ aggXn2 <- aggregate(cbind(dAIC.xn, dR2.xn, dRMSE.xn) ~ model + DroughtVar + Temp
 aggXn2$dAIC.rank[order(aggXn2$dAIC, decreasing=F)] <- 1:nrow(aggXn2)
 aggXn2$dR2.rank[order(aggXn2$dR2, decreasing=T)] <- 1:nrow(aggXn2)
 aggXn2$dRMSE.rank[order(aggXn2$dRMSE, decreasing=F)] <- 1:nrow(aggXn2)
+aggXn2$rank.avg <- apply(aggXn2[,c("dR2.rank", "dRMSE.rank")], 1, mean)
+aggXn2$RankComb[order(aggXn2$rank.avg, decreasing=F)] <- 1:nrow(aggXn2)
 aggXn2
 
 aggAdd <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType + landcover, data=modStatsAll[!modStatsAll$model %in% c("modLag") & !modStatsAll$modelType=="interaction",], FUN=mean, na.rm=T)
@@ -60,23 +62,39 @@ aggAdd2 <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + mo
 aggAdd2$dAIC.rank[order(aggAdd2$dAIC, decreasing=F)] <- 1:nrow(aggAdd2)
 aggAdd2$dR2.rank[order(aggAdd2$dR2, decreasing=T)] <- 1:nrow(aggAdd2)
 aggAdd2$dRMSE.rank[order(aggAdd2$dRMSE, decreasing=F)] <- 1:nrow(aggAdd2)
+aggAdd2$rank.avg <- apply(aggAdd2[,c("dR2.rank", "dRMSE.rank")], 1, mean)
+aggAdd2$RankComb[order(aggAdd2$rank.avg, decreasing=F)] <- 1:nrow(aggAdd2)
 aggAdd2
 
 aggAdd2[grep("SPI", aggAdd2$DroughtVar),]
 aggAdd2[grep("SPEI", aggAdd2$DroughtVar),]
+mean(aggAdd2$RankComb[grep("SPI", aggAdd2$DroughtVar)])
+mean(aggAdd2$RankComb[grep("SPEI", aggAdd2$DroughtVar)])
 
-# Of interactive models, 30dSPEI x TMIN60d is the best by many metrics, but not strong support for improvement based on AIC; R2 improvements rel to additive in the ballpark of 0.025
-# Of additive models: 14dSPEI x TMAX30d ranks best for dR2 & dRMSE; next best is 14dSPEI x TMAX60dl not strong support via AIC, but R2 improvements rel to lag-only in ballpark of 0.05
-# The best performing SPI model is actually 30-d SPI with 60-d TMAX
 
+aggXn2[grep("SPI", aggXn2$DroughtVar),]
+aggXn2[grep("SPEI", aggXn2$DroughtVar),]
+mean(aggXn2$RankComb[grep("SPI", aggXn2$DroughtVar)])
+mean(aggXn2$RankComb[grep("SPEI", aggXn2$DroughtVar)])
+
+
+# Most models have very similar performance metrics; lets run 3 different models
+# add1: 14dSPEI + 14d TMAX (#2)
+# add2: 30dSPEI + 30d TMAX (#2)
+# int1: 14d SPI x 14d TMAX (#1)
+# int2: 30d SPI x 14d TMAX (#2)
+
+# When no interaction, SPEI *very* consistently outperforms SPI (but diffs. very minor); when have an interaction, timescale is a bigger factor for splitting haris
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Running the models! ----
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 LCtypes <- unique(ndviMet$landcover)
-modOutList <- list()
-modOutListSPI <- list()
+modOutListAdd1 <- list()
+modOutListAdd2 <- list()
+modOutListInt1 <- list()
+modOutListInt2 <- list()
 for(LC in LCtypes){
   print(LC)
   # Subset the data to a single land cover type
@@ -104,12 +122,37 @@ for(LC in LCtypes){
   # Starting with doing a simple model of NDVI ~ 
   days.use <- 1:365
   
-  modsList <- list()
-  mod.out <- data.frame(landcover=LC, yday=1:365, Rsq=NA, RMSE=NA, 
-                        coef.Int=NA, coef.Lag=NA, coef.SPEI14=NA, coef.TMAX30=NA, 
-                        err.Int=NA, err.Lag=NA, err.SPEI14=NA, err.TMAX30=NA, 
-                        tVal.Int=NA, tVal.Lag=NA, tVal.SPEI14=NA, tVal.TMAX30=NA, 
-                        pVal.Int=NA, pVal.Lag=NA, pVal.SPEI14=NA, pVal.TMAX30=NA) 
+  modsListAdd1 <- list()
+  modsListAdd2 <- list()
+  modsListInt1 <- list()
+  modsListInt2 <- list()
+  
+  # add1: 14dSPEI + 14d TMAX (#2)
+  # add2: 30dSPEI + 30d TMAX (#2)
+  # int1: 14d SPI x 14d TMAX (#1)
+  # int2: 30d SPI x 14d TMAX (#2)
+  
+  mod.outAdd1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="X14dSPEI", TempVar="TMAX14d", Rsq=NA, RMSE=NA, 
+                            coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
+                            err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
+                            tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
+                            pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
+  mod.outAdd2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="X30dSPEI", TempVar="TMA30d",  Rsq=NA, RMSE=NA, 
+                            coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
+                            err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
+                            tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
+                            pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
+  mod.outInt1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="X14dSPI", TempVar="MAX14d", Rsq=NA, RMSE=NA, 
+                            coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, coef.TxD=NA, coef.LagxD=NA, coef.LagxT=NA, coef.DxTxLag=NA, 
+                            err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , err.TxD=NA , err.LagxD=NA , err.LagxT=NA , err.DxTxLag=NA , 
+                            tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, tVal.TxD=NA, tVal.LagxD=NA, tVal.LagxT=NA, tVal.DxTxLag=NA, 
+                            pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA, pVal.TxD=NA, pVal.LagxD=NA, pVal.LagxT=NA, pVal.DxTxLag=NA) 
+
+  mod.outInt2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="X30dSPI", TempVar="TMAX",  Rsq=NA, RMSE=NA, 
+                            coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, coef.TxD=NA, coef.LagxD=NA, coef.LagxT=NA, coef.DxTxLag=NA, 
+                            err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , err.TxD=NA , err.LagxD=NA , err.LagxT=NA , err.DxTxLag=NA , 
+                            tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, tVal.TxD=NA, tVal.LagxD=NA, tVal.LagxT=NA, tVal.DxTxLag=NA, 
+                            pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA, pVal.TxD=NA, pVal.LagxD=NA, pVal.LagxT=NA, pVal.DxTxLag=NA) 
   
   # row.ind = 0 # Setting up an index that will tell us what row to save things in; we should start with 0 because we haven't done anything yet
   pb <- txtProgressBar(min=min(days.use), max=max(days.use), style=3)
@@ -130,33 +173,129 @@ for(LC in LCtypes){
     # ggplot(data=dat.tmp) + geom_violin(aes(x=as.factor(year), y=X30d.SPI, fill=mission), scale="width")
     # ggplot(data=dat.tmp, aes(x=X30d.SPI, y=NDVI)) + geom_point(aes(color=mission)) + stat_smooth(method="lm")
     
-    #Set up a lag-only model
-    modFinal <- nlme::lme(NDVI ~ X14d.SPEI + TMAX30d + NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
-    sumFinal <- summary(modFinal)
-    modsList[[i]] <- modFinal
-    mod.out$Rsq[i] <- MuMIn::r.squaredGLMM(modFinal)[2]
-    mod.out$RMSE[i] <- sqrt(mean(resid(modFinal)^2))
+    # Trying 4 different models to compare
+    # add1: 14dSPEI + 14d TMAX (#2)
+    # add2: 30dSPEI + 30d TMAX (#2)
+    # int1: 14d SPI x 14d TMAX (#1)
+    # int2: 30d SPI x 14d TMAX (#2)
     
-    mod.out[i,c("coef.Int", "coef.SPEI14", "coef.TMAX30", "coef.Lag")] <- sumFinal$tTable[,"Value"]
-    mod.out[i,c("err.Int", "err.SPEI14", "err.TMAX30", "err.Lag")] <- sumFinal$tTable[,"Std.Error"]
-    mod.out[i,c("tVal.Int", "tVal.SPEI14", "tVal.TMAX30", "tVal.Lag")] <- sumFinal$tTable[,"t-value"]
-    mod.out[i,c("pVal.Int", "pVal.SPEI14", "pVal.TMAX30", "pVal.Lag")] <- sumFinal$tTable[,"p-value"]
-  } # End day of year loop
-  summary(mod.out)
-  modOutList[[LC]] <- mod.out
+    
+    #Set up a lag-only model
+    modAdd1 <- nlme::lme(NDVI ~ X14d.SPEI + TMAX14d + NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
+    sumAdd1 <- summary(modAdd1)
+    modsListAdd1[[i]] <- modAdd1
+    mod.outAdd1$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd1)[2]
+    mod.outAdd1$RMSE[i] <- sqrt(mean(resid(modAdd1)^2))
+    
+    mod.outAdd1[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd1$tTable[,"Value"]
+    mod.outAdd1[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd1$tTable[,"Std.Error"]
+    mod.outAdd1[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag")] <- sumAdd1$tTable[,"t-value"]
+    mod.outAdd1[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag")] <- sumAdd1$tTable[,"p-value"]
+    
+    modAdd2 <- nlme::lme(NDVI ~ X30d.SPEI + TMAX30d + NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
+    sumAdd2 <- summary(modAdd2)
+    modsListAdd2[[i]] <- modAdd2
+    mod.outAdd2$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd2)[2]
+    mod.outAdd2$RMSE[i] <- sqrt(mean(resid(modAdd2)^2))
+    
+    mod.outAdd2[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd2$tTable[,"Value"]
+    mod.outAdd2[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd2$tTable[,"Std.Error"]
+    mod.outAdd2[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag")] <- sumAdd2$tTable[,"t-value"]
+    mod.outAdd2[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag")] <- sumAdd2$tTable[,"p-value"]
 
-  write.csv(mod.out, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_", LC, ".csv")), row.names=F)
-  saveRDS(modsList, file.path(pathSave, paste0("DailyModel_FinalModels_", LC, ".RDS")))
+    modInt1 <- nlme::lme(NDVI ~ X14d.SPI*TMAX14d*NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
+    sumInt1 <- summary(modInt1)
+    modsListInt1[[i]] <- modInt1
+    mod.outInt1$Rsq[i] <- MuMIn::r.squaredGLMM(modInt1)[2]
+    mod.outInt1$RMSE[i] <- sqrt(mean(resid(modInt1)^2))
+    
+    mod.outInt1[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag", "coef.TxD", "coef.LagxD", "coef.LagxT", "coef.DxTxLag")] <- sumInt1$tTable[,"Value"]
+    mod.outInt1[i,c("err.Int" , "err.Drought" , "err.Temp" , "err.Lag" , "err.TxD" , "err.LagxD" , "err.LagxT" , "err.DxTxLag" )] <- sumInt1$tTable[,"Std.Error"]
+    mod.outInt1[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag", "tVal.TxD", "tVal.LagxD", "tVal.LagxT", "tVal.DxTxLag")] <- sumInt1$tTable[,"t-value"]
+    mod.outInt1[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag", "pVal.TxD", "pVal.LagxD", "pVal.LagxT", "pVal.DxTxLag")] <- sumInt1$tTable[,"p-value"]
+    
+
+    modInt2 <- nlme::lme(NDVI ~ X30d.SPI*TMAX14d*NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
+    sumInt2 <- summary(modInt2)
+    modsListInt2[[i]] <- modInt2
+    mod.outInt2$Rsq[i] <- MuMIn::r.squaredGLMM(modInt2)[2]
+    mod.outInt2$RMSE[i] <- sqrt(mean(resid(modInt2)^2))
+    
+    mod.outInt2[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag", "coef.TxD", "coef.LagxD", "coef.LagxT", "coef.DxTxLag")] <- sumInt2$tTable[,"Value"]
+    mod.outInt2[i,c("err.Int" , "err.Drought" , "err.Temp" , "err.Lag" , "err.TxD" , "err.LagxD" , "err.LagxT" , "err.DxTxLag" )] <- sumInt2$tTable[,"Std.Error"]
+    mod.outInt2[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag", "tVal.TxD", "tVal.LagxD", "tVal.LagxT", "tVal.DxTxLag")] <- sumInt2$tTable[,"t-value"]
+    mod.outInt2[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag", "pVal.TxD", "pVal.LagxD", "pVal.LagxT", "pVal.DxTxLag")] <- sumInt2$tTable[,"p-value"]
+    
+  } # End day of year loop
+  # summary(mod.out)
+  modOutListAdd1[[LC]] <- mod.outAdd1
+  modOutListAdd2[[LC]] <- mod.outAdd2
+  modOutListInt1[[LC]] <- mod.outInt1
+  modOutListInt2[[LC]] <- mod.outInt2
   
-  effectStack <- stack(mod.out[,grep("tVal", names(mod.out))])
-  names(effectStack) <- c("tVal", "effect")
-  effectStack$doy <- mod.out$yday
-  effectStack$effect <- gsub("tVal.", "", effectStack$effect) # making clean names
-  effectStack$pVal <- stack(mod.out[,grep("pVal", names(mod.out))])[,"values"]
-  effectStack$coef <- stack(mod.out[,grep("coef", names(mod.out))])[,"values"]
+  write.csv(mod.outAdd1, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_", LC, ".csv")), row.names=F)
+  saveRDS(modsListAdd1, file.path(pathSave, paste0("DailyModel_FinalModels_Additive_SPEI14-TMAX14_", LC, ".RDS")))
+  
+  write.csv(mod.outAdd2, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI30-TMAX30_", LC, ".csv")), row.names=F)
+  saveRDS(modsListAdd2, file.path(pathSave, paste0("DailyModel_FinalModels_Additive_SPEI30-TMAX30_", LC, ".RDS")))
+  
+  write.csv(mod.outInt1, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Interactive_SPI14-TMAX14_", LC, ".csv")), row.names=F)
+  saveRDS(modsListInt1, file.path(pathSave, paste0("DailyModel_FinalModels_Interactive_SPI14-TMAX14_", LC, ".RDS")))
+  
+  write.csv(mod.outInt2, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Interactive_SPI30-TMAX14_", LC, ".csv")), row.names=F)
+  saveRDS(modsListInt2, file.path(pathSave, paste0("DailyModel_FinalModels_Interactive_SPI30-TMAX14_", LC, ".RDS")))
+  
+  
+  effectStackAdd1 <- stack(mod.outAdd1[,grep("tVal", names(mod.outAdd1))])
+  names(effectStackAdd1) <- c("tVal", "effect")
+  effectStackAdd1$model <- c("SPEI14-TMAX14")
+  effectStackAdd1$doy <- mod.outAdd1$yday
+  effectStackAdd1$effect <- gsub("tVal.", "", effectStackAdd1$effect) # making clean names
+  effectStackAdd1$effect <- factor(effectStackAdd1$effect, rev( c("Drought", "Temp", "Lag", "Int")))
+  effectStackAdd1$pVal <- stack(mod.outAdd1[,grep("pVal", names(mod.outAdd1))])[,"values"]
+  effectStackAdd1$coef <- stack(mod.outAdd1[,grep("coef", names(mod.outAdd1))])[,"values"]
+  
+  effectStackAdd2 <- stack(mod.outAdd2[,grep("tVal", names(mod.outAdd2))])
+  names(effectStackAdd2) <- c("tVal", "effect")
+  effectStackAdd2$model <- c("SPEI30-TMAX30")
+  effectStackAdd2$doy <- mod.outAdd2$yday
+  effectStackAdd2$effect <- gsub("tVal.", "", effectStackAdd2$effect) # making clean names
+  effectStackAdd2$effect <- factor(effectStackAdd2$effect, rev( c("Drought", "Temp", "Lag", "Int")))
+  effectStackAdd2$pVal <- stack(mod.outAdd2[,grep("pVal", names(mod.outAdd2))])[,"values"]
+  effectStackAdd2$coef <- stack(mod.outAdd2[,grep("coef", names(mod.outAdd2))])[,"values"]
+  
+
+  effectStackInt1 <- stack(mod.outInt1[,grep("tVal", names(mod.outInt1))])
+  names(effectStackInt1) <- c("tVal", "effect")
+  effectStackInt1$model <- c("SPI14-TMAX14")
+  effectStackInt1$doy <- mod.outInt1$yday
+  effectStackInt1$effect <- gsub("tVal.", "", effectStackInt1$effect) # making clean names
+  effectStackInt1$effect <- factor(effectStackInt1$effect, rev( c("Int","Lag", "Drought", "Temp", "TxD", "LagxD", "LagxT", "DxTxLag")))
+  effectStackInt1$pVal <- stack(mod.outInt1[,grep("pVal", names(mod.outInt1))])[,"values"]
+  effectStackInt1$coef <- stack(mod.outInt1[,grep("coef", names(mod.outInt1))])[,"values"]
+  
+  # ggplot(data=effectStackInt1[effectStackInt1$pVal<0.05 & !is.na(effectStackInt1$tVal),]) +
+  #   ggtitle(LC) +
+  #   # facet_wrap(~model, scales="free_y") +
+  #   geom_tile(aes(x=doy, y=effect, fill=tVal)) +
+  #   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
+  #   theme_bw()
+  
+  effectStackInt2 <- stack(mod.outInt2[,grep("tVal", names(mod.outInt2))])
+  names(effectStackInt2) <- c("tVal", "effect")
+  effectStackInt2$model <- c("SPI30-TMAX14")
+  effectStackInt2$doy <- mod.outInt2$yday
+  effectStackInt2$effect <- gsub("tVal.", "", effectStackInt2$effect) # making clean names
+  effectStackInt1$effect <- factor(effectStackInt2$effect, rev( c("Int","Lag", "Drought", "Temp", "TxD", "LagxD", "LagxT", "DxTxLag")))
+  effectStackInt2$pVal <- stack(mod.outInt2[,grep("pVal", names(mod.outInt2))])[,"values"]
+  effectStackInt2$coef <- stack(mod.outInt2[,grep("coef", names(mod.outInt2))])[,"values"]
+  
+  effectStack <- rbind(effectStackAdd1, effectStackAdd2, effectStackInt1, effectStackInt2)
+  summary(effectStack)
   
   plotEffSig <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
     ggtitle(LC) +
+    facet_wrap(~model, scales="free_y") +
     geom_tile(aes(x=doy, y=effect, fill=tVal)) +
     scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
     theme_bw()
@@ -167,6 +306,7 @@ for(LC in LCtypes){
   
   plotEffAll <- ggplot(data=effectStack[,]) +
     ggtitle(LC) +
+    facet_wrap(~model, scales="free_y") +
     geom_tile(aes(x=doy, y=effect, fill=tVal)) +
     scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
     theme_bw()
@@ -198,29 +338,37 @@ for(LC in LCtypes){
   print("") # Just kicking the label to a new line to make things cleaner
 } # End LC loop
 
-modOutAll <- dplyr::bind_rows(modOutList)
+modOutAllAdd1 <- dplyr::bind_rows(modOutListAdd1)
+modOutAllAdd2 <- dplyr::bind_rows(modOutListAdd2)
+modOutAllInt1 <- dplyr::bind_rows(modOutListInt1)
+modOutAllInt2 <- dplyr::bind_rows(modOutListInt2)
 summary(modOutAll)
 
 
-effectStack <- stack(modOutAll[,grep("tVal", names(mod.out))])
+effectStack <- stack(modOutAllAdd1[,grep("tVal", names(modOutAllAdd1))])
 names(effectStack) <- c("tVal", "effect")
-effectStack[,c("doy", "landcover")] <- modOutAll[,c("yday", "landcover")]
+effectStack[,c("doy", "landcover", "DroughtVar", "TempVar")] <- modOutAllAdd1[,c("yday", "landcover", "DroughtVar", "TempVar")]
+effectStack$model <- c("SPEI14-TMAX14")
 effectStack$effect <- gsub("tVal.", "", effectStack$effect) # making clean names
-effectStack$pVal <- stack(modOutAll[,grep("pVal", names(modOutAll))])[,"values"]
-effectStack$coef <- stack(modOutAll[,grep("coef", names(modOutAll))])[,"values"]
+effectStack$effect <- factor(effectStack$effect, rev( c("Drought", "Temp", "Lag", "Int")))
+effectStack$pVal <- stack(modOutAllAdd1[,grep("pVal", names(modOutAllAdd1))])[,"values"]
+effectStack$coef <- stack(modOutAllAdd1[,grep("coef", names(modOutAllAdd1))])[,"values"]
 
 
+modName <- unique(effectStack$model)
 plotEffSig1 <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
+  ggtitle(modName) +
   facet_wrap(~landcover) +
   geom_tile(aes(x=doy, y=effect, fill=tVal)) +
   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
   theme_bw()
 
-png(file.path(path.figs, paste0("NDVI-Model_FinalCombined_Effects_SigOnly_wrapLC.png")), height=6, width=10, units="in", res=220)
+png(file.path(path.figs, paste0("NDVI-Model_FinalCombined_Effects_BestAdditive_SigOnly_wrapLC.png")), height=6, width=10, units="in", res=220)
 print(plotEffSig1)
 dev.off()
 
 plotEffAll1 <- ggplot(data=effectStack[,]) +
+  ggtitle(modName) +
   facet_wrap(~landcover) +
   geom_tile(aes(x=doy, y=effect, fill=tVal)) +
   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
@@ -232,6 +380,7 @@ dev.off()
 
 
 plotEffSig2 <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
+  ggtitle(modName) +
   facet_wrap(~effect) +
   geom_tile(aes(x=doy, y=landcover, fill=tVal)) +
   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
@@ -242,6 +391,7 @@ print(plotEffSig2)
 dev.off()
 
 plotEffAll2 <- ggplot(data=effectStack[,]) +
+  ggtitle(modName) +
   facet_wrap(~effect) +
   geom_tile(aes(x=doy, y=landcover, fill=tVal)) +
   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
@@ -251,7 +401,8 @@ png(file.path(path.figs, paste0("NDVI-Model_FinalCombined_Effects_All_wrapVar.pn
 print(plotEffAll2)
 dev.off()
 
-plotEffSig3 <- ggplot(data=effectStack[effectStack$effect %in% c("SPEI14", "TMAX30") & effectStack$pVal<0.05,]) +
+plotEffSig3 <- ggplot(data=effectStack[effectStack$effect %in% c("Drought", "Temp") & effectStack$pVal<0.05,]) +
+  ggtitle(modName) +
   facet_wrap(~effect) +
   geom_tile(aes(x=doy, y=landcover, fill=tVal)) +
   scale_fill_gradient2(low="orange2", high="green4", mid="gray80", midpoint=0) +
