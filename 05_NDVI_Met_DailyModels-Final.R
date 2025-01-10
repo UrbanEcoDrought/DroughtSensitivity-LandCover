@@ -354,6 +354,28 @@ effectStack$effect <- factor(effectStack$effect, rev( c("Drought", "Temp", "Lag"
 effectStack$pVal <- stack(modOutAllAdd1[,grep("pVal", names(modOutAllAdd1))])[,"values"]
 effectStack$coef <- stack(modOutAllAdd1[,grep("coef", names(modOutAllAdd1))])[,"values"]
 
+# Plotting results----
+
+# establishing seasons for plotting simplicity
+# defining general seasonal windows
+seasons <- data.frame(
+  season = c("Winter", "Winter","Spring", "Summer", "Fall"),
+  xmin = c(355,1, 80, 172, 264),   # Approx start of seasons
+  xmax = c(365, 80, 172, 264, 355)   # Approx end of seasons
+)
+
+# defining rough growing season for plotting purposes; we can always change this.
+grow.seas <- data.frame(
+  gs.start = 91, # beginning of april
+  gs.end = 304 # end of october
+)
+
+# establishing factor for significance
+effectStack$sig <- ifelse(effectStack$pVal<0.05, "yes", "no")
+
+
+# Remove the last row since it has NA for date_end and value_end
+df_segment <- df[!is.na(df$date_end), ]
 
 modName <- unique(effectStack$model)
 plotEffSig1 <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
@@ -366,6 +388,26 @@ plotEffSig1 <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
 png(file.path(path.figs, paste0("NDVI-Model_FinalCombined_Effects_BestAdditive_SigOnly_wrapLC.png")), height=6, width=10, units="in", res=220)
 print(plotEffSig1)
 dev.off()
+
+# testing some things with a polar projectino but haven't saved it yet.
+plotEffSig1.polar <- ggplot(data=effectStack[!effectStack$effect %in% c("Int", "Lag"),]) +
+  facet_wrap(~landcover) +
+  # adding in gs lines
+  geom_vline(data = grow.seas, aes(xintercept = gs.start), col="red3", linetype="dashed") +
+  geom_vline(data = grow.seas, aes(xintercept = gs.end), col="red3", linetype="dashed") +
+  geom_point(aes(x=doy, y=tVal, col=effect, pch=sig, size=sig)) +
+  geom_rect(data = seasons,
+            aes(xmin = xmin, xmax = xmax, ymin = max(effectStack$tVal[!effectStack$effect %in% c("Int", "Lag")]), ymax = max(effectStack$tVal[!effectStack$effect %in% c("Int", "Lag")])+2, fill = season),
+            inherit.aes = FALSE, alpha = 0.2) +
+  scale_color_manual(values = c("TMAX30"="orange2", "SPEI14"="dodgerblue", "Lag" = "green4")) +
+  scale_fill_manual(values = c("Winter" = "#1f78b4", "Spring" = "#b2df8a", 
+                                 "Summer" = "#33a02c", "Fall" = "#a6cee3")) +
+  scale_shape_manual(values=c("yes" = 19, "no" = 4)) +
+  scale_size_manual(values=c("yes" = 3, "no" = 0.1)) +
+  theme_bw() +
+  coord_polar()
+
+
 
 plotEffAll1 <- ggplot(data=effectStack[,]) +
   ggtitle(modName) +
