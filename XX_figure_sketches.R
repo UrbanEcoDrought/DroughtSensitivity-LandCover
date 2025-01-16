@@ -33,3 +33,13 @@ ggplot(data=data, aes(x=yday, y=dRMSE, color=landcover)) + facet_wrap(~model) +
                                "Summer" = "yellow", "Fall" = "orange")) +
   coord_polar()
 
+
+ggplot(data=data[data$landcover %in% c("forest", "crop"),], aes(x=yday, y=dRMSE, color=landcover)) + facet_wrap(~model) +
+  geom_rect(data = seasons,
+            aes(xmin = xmin, xmax = xmax, ymin = min(data$dRMSE), ymax = max(data$dRMSE), fill = season),
+            inherit.aes = FALSE, alpha = 0.2) +
+  geom_line() +
+  scale_y_reverse() +
+  scale_fill_manual(values = c("Winter" = "blue", "Spring" = "green", 
+                               "Summer" = "yellow", "Fall" = "orange")) +
+  coord_polar()
