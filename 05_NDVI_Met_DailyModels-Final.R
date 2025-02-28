@@ -4,7 +4,7 @@ library(lubridate)
 library(ggcorrplot)
 
 # Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
