@@ -506,3 +506,6 @@ write.csv(modOutAll, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_All
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+# generating code to calculate the partial effects throughout the different DOY for the different land cover models.
+# need to bring in the mean conditions for DOY for temp, SPEI, and for NDVI
+
