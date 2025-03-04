@@ -4,7 +4,7 @@ library(lubridate)
 library(ggcorrplot)
 
 # Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
@@ -20,6 +20,7 @@ ndviMet <- read.csv(file.path(google.drive,"data/processed_files/landsat_ndvi_me
 ndviMet$date <- as.Date(ndviMet$date)
 ndviMet$mission <- as.factor(ndviMet$mission) 
 ndviMet$landcover <- as.factor(ndviMet$landcover)
+summary(ndviMet)
 
 modStatsAll <- read.csv(file.path(google.drive, "data/processed_files/ModelSelection-Multivariate", paste0("DailyModel_VarSelection-Multivariate_ModelStats-ALL.csv")))
 modStatsAll$landcover <- as.factor(modStatsAll$landcover)
@@ -506,3 +507,95 @@ write.csv(modOutAll, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_All
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+# generating code to calculate the partial effects throughout the different DOY for the different land cover models.
+# need to bring in the mean conditions for DOY for temp, SPEI, and for NDVI
+library(dplyr)
+library(zoo)
+
+# loading the model data frames so that we can merge in the met data and create partial effects.
+# loading the SPEI14 and TMAX14 models as a place to start. Need to check wiht @crollinson to make sure this is the correct model form. 
+crop.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_crop.csv")))
+forest.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_forest.csv")))
+grassLand.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_grassland.csv")))
+urbanHigh.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-high.csv")))
+urbanLow.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-low.csv")))
+urbanOpen.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-open.csv")))
+urbanMedium.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-medium.csv")))
+
+modOutAll <- rbind(crop.add1, forest.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
+modOutAll$modelType <- as.factor("additive")
+summary(modOutAll)                      
+
+                    
+summary(ndviMet)  
+
+# creating the lagged dataset
+datLC <- ndviMet[,c("date", "NDVI", "landcover")]
+
+datLC <- datLC %>%
+  arrange(landcover, date)  # Ensure correct order
+
+datLC <- datLC %>%
+  arrange(landcover, date) %>%  # Ensure data is ordered by land cover type and date
+  group_by(landcover) %>%
+  mutate(NDVI.Lag14d = rollapply(NDVI, width = 14, align = "right", FUN = mean, fill = NA, na.rm = TRUE)) %>%
+  ungroup()
+summary(datLC)
+
+# # plotting to check that it looks somewhat right
+# ggplot(data=datLC) + facet_wrap(landcover~.) +
+#   geom_line(aes(x=date, y=NDVI.Lag14d, col=landcover))
+
+# # checking that the lagged calculation that ran in the forloop is the same as the one that was created here.
+# forest.lag <- datLC # created in line 113 above
+# 
+# head(forest.lag)
+# 
+# ross.forest <- datLC[datLC$landcover %in% "forest",]
+# head(ross.forest)
+# 
+# meow <- forest.lag$NDVI.Lag14d - ross.forest$NDVI.Lag14d
+# summary(meow) # zeroes are good!
+summary(ndviMet)# data frame with met vars
+summary(datLC) # data frame with lags
+summary(modOutAll) # data frame with coefficients.
+
+#merging lag into ndvimet data frame
+datLC2 <- merge(ndviMet, datLC, by=c("date", "landcover", "NDVI"))
+summary(datLC2)
+
+# creating a yday column
+datLC2$yday <- yday(datLC2$date)
+
+# had to separate, because there were some differnences in the dates that are available. Arises from teh NDVI lagged data.
+lag.dailyMean <- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+spei.dailyMean <- aggregate(X30d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+tmax.dailyMean <- aggregate(TMAX30d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+ndvi.dailyMean <- aggregate(NDVI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+# merging daily mean data  together
+# start with metVars
+
+dailyMeans <- merge(spei.dailyMean, tmax.dailyMean, by=c("yday", "landcover"), all=T)
+dailyMeans2 <- merge(dailyMeans, lag.dailyMean, by=c("yday", "landcover"), all=T)
+dailyMeans3 <- merge(dailyMeans2, ndvi.dailyMean, by=c("yday", "landcover"), all=T)
+summary(dailyMeans3)
+names(dailyMeans3) <- c("yday", "landcover", "spei30d.mean", "tmax30d.mean", "ndviLag.mean", "NDVI.mean")
+
+
+# merging in these daily means with the model output data
+summary(modOutAll) # data frame with coefficients.
+
+modOutAll2 <- merge(modOutAll, dailyMeans3, by=c("yday", "landcover"))
+summary(modOutAll2)
+
+# calculating partial effects----
+# partial effect = coefficient * daily mean Var
+
+modOutAll2$partial.Drought <- modOutAll2$coef.Drought* modOutAll2$spei30d.mean
+modOutAll2$partial.Temp <- modOutAll2$coef.Temp * modOutAll2$tmax30d.mean
+modOutAll2$partial.Lag <- modOutAll2$coef.Lag * modOutAll2$ndviLag.mean
+
+summary(modOutAll2)
+
+# saving data frame
+write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_PartialEffects_AllLandcovers.csv")), row.names=F)
