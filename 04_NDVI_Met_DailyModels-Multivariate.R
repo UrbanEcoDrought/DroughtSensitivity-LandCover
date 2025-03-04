@@ -55,7 +55,7 @@ mean(aggLC2$RankComb[grep("TMIN", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPEI", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPI", aggLC2$model)])
 
-# Looking across variables and temporal scales, SPEI and SPI are closer with timescale having a stronger "singla"; TMAX & TMIN behave similarly
+# Looking across variables and temporal scales, SPEI and SPI are closer with timescale having a stronger "single"; TMAX & TMIN behave similarly
 # 30-day SPEI is the best in both R2 & RMSE with 30-day SPI in a close second; 14 days, so lets definitely start with that in our model and combine it with 30-day Tmin & Tmax; TMAX, which is the highest temp predictor; we'll test by itself as well as interactions
 
 
