@@ -25,27 +25,31 @@ pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
 # starting with the output file created in script 05_NDVI_MET_DilyModels-Final.R
 
 # Step 1: Read the model statistics CSV
-model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_PartialEffects_AllLandcovers.csv")))
+model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_PartialEffects_AllLandcovers.csv")))
 summary(model_stats)
 head(model_stats)
 
-# Step 2: Filter rows where p-values for the variables are less than or equal to 0.05 (significant results)
-significant_stats <- model_stats[model_stats$pVal.Lag <= 0.05 | model_stats$pVal.Drought <= 0.05 | model_stats$pVal.Temp <= 0.05, 
-                                 c("landcover", "yday", "tVal.Lag", "tVal.Drought", "tVal.Temp", "pVal.Lag", "pVal.Drought", "pVal.Temp")]
+# Step 2: Replace non-significant t-values with NA
+model_stats2 <- model_stats
+
+model_stats2$tVal.Lag[model_stats$pVal.Lag > 0.05] <- NA
+model_stats2$tVal.Drought[model_stats$pVal.Drought > 0.05] <- NA
+model_stats2$tVal.Temp[model_stats$pVal.Temp > 0.05] <- NA
+
+# Select relevant columns
+significant_stats <- model_stats2[, c("landcover", "yday", "tVal.Lag", "tVal.Drought", "tVal.Temp")]
 
 # Step 3: Reshape the data into long format, including yday
 significant_stats_long <- data.frame(
-  LandCoverType = rep(significant_stats$landcover, 3),  # Repeat LandCoverType for each variable
-  yday = rep(significant_stats$yday, 3),  # Repeat yday for each variable
-  Variable = rep(c("tVal_Lag", "tVal_Drought", "tVal_Temp"), each = nrow(significant_stats)),  # Variable names
+  LandCoverType = rep(significant_stats$landcover, 3),
+  yday = rep(significant_stats$yday, 3),
+  Variable = rep(c("tVal_Lag", "tVal_Drought", "tVal_Temp"), each = nrow(significant_stats)),
   t_stat_value = c(significant_stats$tVal.Lag, 
                    significant_stats$tVal.Drought, 
-                   significant_stats$tVal.Temp),  # Combine the t-stat values into one vector
-  p_value = c(significant_stats$pVal.Lag, 
-              significant_stats$pVal.Drought, 
-              significant_stats$pVal.Temp)  # Corresponding p-values for the t-statistics
+                   significant_stats$tVal.Temp)
 )
 
+summary(significant_stats_long)
 # View the first few rows of the reshaped data with yday
 head(significant_stats_long)
 
@@ -107,7 +111,7 @@ ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
 summary(model_stats)
 
 # need to reshape to stack partial effects
-partial.dat <- model_stats[,c("partial.SPEI30", "partial.TMAX30", "partial.Lag")]
+partial.dat <- model_stats[,c("partial.Drought", "partial.Temp", "partial.Lag")]
 partial.dat.stack <- stack(partial.dat)
 names(partial.dat.stack) <- c("values", "var")
 
@@ -122,28 +126,28 @@ partial.dat.stack$date <- as.Date(partial.dat.stack$yday - 1, origin = "2000-01-
 forest.part <- partial.dat.stack[partial.dat.stack$landcover %in% "forest",]
 ggplot(data=forest.part) +
   geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.SPEI30" = "blue", "partial.TMAX30" = "red3", "partial.Lag"="forestgreen")) +
+  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
   theme_bw()
 
 
 ggplot(data=forest.part[!forest.part$var %in% "partial.Lag",]) +
   geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.SPEI30" = "blue", "partial.TMAX30" = "red3", "partial.Lag"="forestgreen")) +
+  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
   theme_bw()
 
 
 ggplot(data=partial.dat.stack) + facet_wrap(landcover~.) +
   geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.SPEI30" = "blue", "partial.TMAX30" = "red3", "partial.Lag"="forestgreen")) +
+  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
   theme_bw()
 
 
 ggplot(data=partial.dat.stack[!partial.dat.stack$var %in% "partial.Lag",]) +  facet_wrap(landcover~.) +
   geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.SPEI30" = "blue", "partial.TMAX30" = "red3", "partial.Lag"="forestgreen")) +
+  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
   theme_bw()
 

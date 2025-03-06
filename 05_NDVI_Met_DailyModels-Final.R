@@ -73,6 +73,7 @@ mean(aggAdd2$RankComb[grep("SPI", aggAdd2$DroughtVar)])
 mean(aggAdd2$RankComb[grep("SPEI", aggAdd2$DroughtVar)])
 
 
+
 aggXn2[grep("SPI", aggXn2$DroughtVar),]
 aggXn2[grep("SPEI", aggXn2$DroughtVar),]
 mean(aggXn2$RankComb[grep("SPI", aggXn2$DroughtVar)])
@@ -90,6 +91,8 @@ mean(aggXn2$RankComb[grep("SPEI", aggXn2$DroughtVar)])
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Running the models! ----
+# previously: picked 2 sets of variables for further investigation (e.g. aggXn2)
+# Purpose: How much of the power is actual sensitivity to variable selection as opposed to noise and parameter trade off?
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 LCtypes <- unique(ndviMet$landcover)
 modOutListAdd1 <- list()
@@ -343,8 +346,12 @@ modOutAllAdd1 <- dplyr::bind_rows(modOutListAdd1)
 modOutAllAdd2 <- dplyr::bind_rows(modOutListAdd2)
 modOutAllInt1 <- dplyr::bind_rows(modOutListInt1)
 modOutAllInt2 <- dplyr::bind_rows(modOutListInt2)
-summary(modOutAll)
 
+
+# want to use modOutAllAdd1 for now (03/06/2025)
+# It is the best performing of the additive models
+# eases interpretation
+# no major performance boost from an interactive model.
 
 effectStack <- stack(modOutAllAdd1[,grep("tVal", names(modOutAllAdd1))])
 names(effectStack) <- c("tVal", "effect")
@@ -376,7 +383,7 @@ effectStack$sig <- ifelse(effectStack$pVal<0.05, "yes", "no")
 
 
 # Remove the last row since it has NA for date_end and value_end
-df_segment <- df[!is.na(df$date_end), ]
+# df_segment <- df[!is.na(df$date_end), ]
 
 modName <- unique(effectStack$model)
 plotEffSig1 <- ggplot(data=effectStack[effectStack$pVal<0.05,]) +
@@ -493,17 +500,16 @@ summary(chiMet)
 length(unique(chiMet$yday))
 head(chiMet[is.na(chiMet$date),])
 
+
 head(chiMet[chiMet$yday>80 & chiMet$yday<90,])
+# want to hang on to chi met so that we can use it to calculate the yearly partial effects later on.
 
 # Gettign the climatic norm to get our met partial effects
+# calculating normals just over the period that we have Satellite data
 chiMetNorms <- aggregate(cbind(X14d.SPEI, TMAX30d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
 summary(chiMetNorms)
 
 dim(chiMetNorms); dim(modOutAll)
-
-# Once we have the met partial effects, we'll merge the climate norm data frames in to mod.out and then multiple coef.X14dSPEI by X14dSPEI to get the partial effect in NDVI units; (same thing for temp partial effects)
-
-write.csv(modOutAll, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_AllLandcovers.csv")), row.names=F)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 
@@ -516,7 +522,7 @@ library(zoo)
 # loading the SPEI14 and TMAX14 models as a place to start. Need to check wiht @crollinson to make sure this is the correct model form. 
 crop.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_crop.csv")))
 forest.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_forest.csv")))
-grassLand.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_grassland.csv")))
+grassland.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_grassland.csv")))
 urbanHigh.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-high.csv")))
 urbanLow.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-low.csv")))
 urbanOpen.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX14_urban-open.csv")))
@@ -556,6 +562,7 @@ summary(datLC)
 # 
 # meow <- forest.lag$NDVI.Lag14d - ross.forest$NDVI.Lag14d
 # summary(meow) # zeroes are good!
+
 summary(ndviMet)# data frame with met vars
 summary(datLC) # data frame with lags
 summary(modOutAll) # data frame with coefficients.
@@ -589,13 +596,31 @@ modOutAll2 <- merge(modOutAll, dailyMeans3, by=c("yday", "landcover"))
 summary(modOutAll2)
 
 # calculating partial effects----
+
+# calculating mean Climate partial effects
 # partial effect = coefficient * daily mean Var
 
-modOutAll2$partial.Drought <- modOutAll2$coef.Drought* modOutAll2$spei30d.mean
-modOutAll2$partial.Temp <- modOutAll2$coef.Temp * modOutAll2$tmax30d.mean
-modOutAll2$partial.Lag <- modOutAll2$coef.Lag * modOutAll2$ndviLag.mean
+modOutAll2$partial.Drought.climateMean <- modOutAll2$coef.Drought* modOutAll2$spei30d.mean
+modOutAll2$partial.Temp.climateMean<- modOutAll2$coef.Temp * modOutAll2$tmax30d.mean
+modOutAll2$partial.Lag.climateMean <- modOutAll2$coef.Lag * modOutAll2$ndviLag.mean
 
 summary(modOutAll2)
 
 # saving data frame
-write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_PartialEffects_AllLandcovers.csv")), row.names=F)
+write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_PartialEffects_AllLandcovers.csv")), row.names=F)
+
+####################
+# Calculating Partial Effects for individual years----
+
+summary(ndviMet)
+summary(chiMet)
+summary(modOutAll2) # wanting this data frame for just the coefficients
+head(modOutAll2)
+
+ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=TMAX14d)) +
+  geom_tile()
+ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=X14d.SPEI)) +
+  geom_tile()
+
+ggplot(data = ndviMet[ndviMet$date >="2000-01-01",], aes(x=date, y=X14d.SPEI)) +
+  geom_line()
