@@ -2,8 +2,9 @@
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
+library(dplyr)
 
-# Setting the file paths. This may be different for your computer.
+# Settindbplyr# Setting the file paths. This may be different for your computer.
 # Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
@@ -80,7 +81,7 @@ mean(aggXn2$RankComb[grep("SPI", aggXn2$DroughtVar)])
 mean(aggXn2$RankComb[grep("SPEI", aggXn2$DroughtVar)])
 
 
-# Most models have very similar performance metrics; lets run 3 different models
+# Most models have very similar performance metrics; lets run 4 different models
 # add1: 14dSPEI + 14d TMAX (#2)
 # add2: 30dSPEI + 30d TMAX (#2)
 # int1: 14d SPI x 14d TMAX (#1)
@@ -575,18 +576,18 @@ summary(datLC2)
 datLC2$yday <- yday(datLC2$date)
 
 # had to separate, because there were some differnences in the dates that are available. Arises from teh NDVI lagged data.
-lag.dailyMean <- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
-spei.dailyMean <- aggregate(X30d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
-tmax.dailyMean <- aggregate(TMAX30d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
-ndvi.dailyMean <- aggregate(NDVI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+lag.dailyNorm<- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+spei.dailyNorm<- aggregate(X30d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+tmax.dailyNorm <- aggregate(TMAX30d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+ndvi.dailyNorm <- aggregate(NDVI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 # merging daily mean data  together
 # start with metVars
 
-dailyMeans <- merge(spei.dailyMean, tmax.dailyMean, by=c("yday", "landcover"), all=T)
-dailyMeans2 <- merge(dailyMeans, lag.dailyMean, by=c("yday", "landcover"), all=T)
-dailyMeans3 <- merge(dailyMeans2, ndvi.dailyMean, by=c("yday", "landcover"), all=T)
+dailyMeans <- merge(spei.dailyNorm, tmax.dailyNorm, by=c("yday", "landcover"), all=T)
+dailyMeans2 <- merge(dailyMeans, lag.dailyNorm, by=c("yday", "landcover"), all=T)
+dailyMeans3 <- merge(dailyMeans2, ndvi.dailyNorm, by=c("yday", "landcover"), all=T)
 summary(dailyMeans3)
-names(dailyMeans3) <- c("yday", "landcover", "spei30d.mean", "tmax30d.mean", "ndviLag.mean", "NDVI.mean")
+names(dailyMeans3) <- c("yday", "landcover", "spei30d.norm", "tmax30d.norm", "ndviLag.norm", "NDVI.norm")
 
 
 # merging in these daily means with the model output data
@@ -600,9 +601,9 @@ summary(modOutAll2)
 # calculating mean Climate partial effects
 # partial effect = coefficient * daily mean Var
 
-modOutAll2$partial.Drought.climateMean <- modOutAll2$coef.Drought* modOutAll2$spei30d.mean
-modOutAll2$partial.Temp.climateMean<- modOutAll2$coef.Temp * modOutAll2$tmax30d.mean
-modOutAll2$partial.Lag.climateMean <- modOutAll2$coef.Lag * modOutAll2$ndviLag.mean
+modOutAll2$partial.Drought.climateNorm <- modOutAll2$coef.Drought* modOutAll2$spei30d.norm
+modOutAll2$partial.Temp.climateNorm<- modOutAll2$coef.Temp * modOutAll2$tmax30d.norm
+modOutAll2$partial.Lag.climateNorm <- modOutAll2$coef.Lag * modOutAll2$ndviLag.norm
 
 summary(modOutAll2)
 
@@ -624,3 +625,49 @@ ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=X14d.
 
 ggplot(data = ndviMet[ndviMet$date >="2000-01-01",], aes(x=date, y=X14d.SPEI)) +
   geom_line()
+
+# need to calculate partial effects for individual years.
+# pull out the daily coefficients
+
+drought.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "DroughtVar", "coef.Drought")]
+temp.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "TempVar", "coef.Temp")]
+lag.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "coef.Lag")]
+
+# building a dataframe to house the date-driven partial effects
+pe.date.df <- data.frame(date = chiMet$date,
+                         SPEI.14d = chiMet$X14d.SPEI,
+                         TMAX.14d = chiMet$TMAX14d)
+# merging in the NDVI lag. This will give us replicatino across the land covers
+summary(datLC)
+
+pe.date.df2 <- merge(datLC, pe.date.df, by="date")
+summary(pe.date.df2)
+
+# creating a yday variable to merge in the coefficients
+pe.date.df2$yday <- yday(pe.date.df2$date)
+summary(pe.date.df2)
+
+# merging in coefficients
+pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag")], by=c("landcover", "yday"))
+summary(pe.date.df3)
+
+# calculating partial effects
+pe.date.df3$partial.Drought.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Drought
+pe.date.df3$partial.Temp.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Temp
+pe.date.df3$partial.Lag.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Lag
+
+agg.test <- aggregate(partial.Drought.date~yday+landcover, data=pe.date.df3, FUN=mean)
+agg.test2 <- merge(agg.test, modOutAll2[,names(modOutAll2) %in% c("yday","landcover", "partial.Drought.climateNorm")], by=c("landcover", "yday"))
+head(agg.test2)
+
+agg.test2$partial.diff <- agg.test2$partial.Drought.climateNorm-agg.test2$partial.Drought.date
+summary(agg.test2)
+ggplot(agg.test2) + facet_grid(landcover~.) +
+  geom_line(aes(x=yday, y=partial.Drought.date), col="blue") +
+  geom_line(aes(x=yday, y=partial.Drought.climateNorm), col="forestgreen")
+
+ggplot(agg.test2) + facet_grid(landcover~.) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(aes(x=yday, y=partial.diff), col="blue") 
+
+3.266e-02/0.8815 # checking the max difference in teh partial effects agains the max value for NDVI to get a picture of the percent of NDVI we're talkign about with the different ways of calculating the partial effects

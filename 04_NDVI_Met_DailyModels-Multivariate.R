@@ -8,18 +8,19 @@ library(ggcorrplot)
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
-path.NDVI <- file.path(google.drive, "data", "data_raw")
+path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract")
 path.figs <- file.path(google.drive, "exploratory figures/ModelSelection-Multivariate")
 pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Multivariate")
 
 if(!dir.exists(path.figs)) dir.create(path.figs, recursive = T)
 if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
 
-# Read in the two key data frames
-ndviMet <- read.csv(file.path(google.drive,"data/processed_files/landsat_ndvi_metVars_combined.csv"))
+# Read in the ndviMet data file from script 3
+ndviMet <- read.csv(file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.csv"), header=T)
 ndviMet$date <- as.Date(ndviMet$date)
 ndviMet$mission <- as.factor(ndviMet$mission) 
 ndviMet$landcover <- as.factor(ndviMet$landcover)
+summary(ndviMet)
 
 modStatsAll <- read.csv(file.path(google.drive, "data/processed_files/ModelSelection-Univariate", paste0("DailyModel_VarSelection-Univariate_ModelStats-ALL.csv")))
 modStatsAll$landcover <- as.factor(modStatsAll$landcover)

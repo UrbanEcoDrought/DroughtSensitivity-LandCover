@@ -2,41 +2,55 @@
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
-
+library(ggsci)
 # Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
-path.NDVI <- file.path(google.drive, "data", "data_raw")
+path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract") # we haven't been the most consistent with our file paths.
 path.figs <- file.path(google.drive, "exploratory figures/ModelSelection-Univariate")
 pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Univariate")
 
 if(!dir.exists(path.figs)) dir.create(path.figs, recursive = T)
 if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
 
-# Reading in the raw NDVI data
-fndvi <- dir(path.NDVI, "Landsat")
+# # # # # # # # #
+# Juliana compiled NDVI data for us into a single file. 
+# We do NOT need to pull in landcover NDVI into a single file any longer
+# # # # # # # # #
 
-ndvi.all <- data.frame()
-for(i in seq_along(fndvi)){
-  fsplit <- strsplit(fndvi[i],"_")[[1]] # Split apart the file name
-  
-  fNOW <- read.csv(file.path(path.NDVI, fndvi[i]))
-  fNOW$mission <- fsplit[1]
-  fNOW$landcover <- strsplit(fsplit[2], "[.]")[[1]][1]
-  
-  ndvi.all <- rbind(ndvi.all, fNOW) # NOTE: This is NOT the best way to do this, but here we go anyways
-}
+# Reading in the raw NDVI data
+# fndvi <- dir(path.NDVI, "Landsat")
+# 
+# ndvi.all <- data.frame()
+# for(i in seq_along(fndvi)){
+#   fsplit <- strsplit(fndvi[i],"_")[[1]] # Split apart the file name
+#   
+#   fNOW <- read.csv(file.path(path.NDVI, fndvi[i]))
+#   fNOW$mission <- fsplit[1]
+#   fNOW$landcover <- strsplit(fsplit[2], "[.]")[[1]][1]
+#   
+#   ndvi.all <- rbind(ndvi.all, fNOW) # NOTE: This is NOT the best way to do this, but here we go anyways
+# }
 
 # ndvi.all <- readRDS(file.path(google.drive, "data/r_files/processed_files/landsat_ndvi_all.RDS"))
+
+ndvi.all <- read.csv("G:/Shared drives/Urban Ecological Drought/data/UrbanEcoDrought_NDVI_LocalExtract/allNDVI_data.csv", header=T)
+
 head(ndvi.all)
 ndvi.all$mission <- as.factor(ndvi.all$mission)
-ndvi.all$landcover <- as.factor(ndvi.all$landcover)
+ndvi.all$landcover <- as.factor(ndvi.all$type)
 ndvi.all$date <- as.Date(ndvi.all$date)
 ndvi.all$year <- lubridate::year(ndvi.all$date)
 ndvi.all$yday <- lubridate::yday(ndvi.all$date)
 summary(ndvi.all)
+
+# quick plotting to see how the data look--combing all missions
+# at this stage we would expect some gaps
+ggplot(data=ndvi.all) + facet_grid(landcover~.) +
+  geom_tile(aes(x=date, y = 1, fill=mission))
+
 
 # subset to just 2001-01-01 to 2023-12-31
 ndvi.all <- ndvi.all[ndvi.all$date <= as.Date("2023-12-31"),]
@@ -47,6 +61,24 @@ summary(ndvi.all)
 ChicagolandSPI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPI.csv"))
 ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPEI.csv"))
 ChicagolandTemp <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_Temps.csv"))
+
+as.Date(ChicagolandSPEI$Date)
+
+test.precip14 <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_spi_spei_14d_all.csv", header=T)
+summary(test.precip14)
+test.precip14$date <- as.Date(test.precip14$date)
+
+ggplot(data=test.precip14[test.precip14$year==2022,]) +
+  geom_line(aes(x=date, y=spi14d, col=type)) +
+  theme_bw()
+
+test.tempall <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_tmin_tmax_all.csv", header=T)
+summary(test.tempall)
+test.tempall$date <- as.Date(test.tempall$date)
+
+ggplot(data=test.tempall[test.tempall$year==2022,]) +
+  geom_line(aes(x=date, y=tmmx, col=type)) +
+  theme_bw()
 
 # create column with date in ISO format; making it lowercase "date" so that it merges easier
 ChicagolandSPI$date <- as.Date(ChicagolandSPI$Date, "%m/%d/%Y")
@@ -61,12 +93,62 @@ dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTemp)
 # Combining met data together in a single data frame
 chiMet <- merge(ChicagolandTemp, ChicagolandSPI, all=T)
 chiMet <- merge(chiMet, ChicagolandSPEI , all=T)
-summary(chiMet)
+summary(chiMet) # precip variables will have some NA's based on how they are calculated
 dim(chiMet)
 
+# adding yday to chiMet
+chiMet$yday <- yday(chiMet$date)
+
+# checking for completeness in the different meteorological variables
+chiMetcheck <- stack(chiMet[,!names(chiMet) %in% c("Date", "date")])
+names(chiMetcheck) <- c("values", "var") 
+chiMetcheck$date <- chiMet$date
+summary(chiMetcheck)
+
+chiMetcheck$yday <- yday(chiMetcheck$date)
+
+ggplot(data=chiMetcheck) + facet_wrap(var~.) +
+  geom_tile(aes(x=yday, y=1, fill=mean(values, na.rm=T)))
+# graph looks good with no major holes in the data
+  
+
+
 # merging met data and NDVI data together into a single data frame
-ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F)
+summary(ndvi.all)
+summary(chiMet)
+
+# checking for complete DOY
+yday.comp <- seq(1:365)
+ndviAll.yday <-unique(ndvi.all$yday)
+chiMet.yday <- unique(chiMet$yday)
+
+chiMet.yday.check <- setdiff(yday.comp, chiMet.yday) # all yday present
+ndvi.yday.check <- setdiff(yday.comp, ndviAll.yday) # doy55 absent
+missing.ndvi <- setdiff(chiMet.yday, ndviAll.yday) # doy55 absent
+
+ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F, by=c("date"))
 summary(ndviMet)
+ndviMet$yday <- yday(ndviMet$date)
+ndviMet.yday.check <- setdiff(yday.comp, ndviMet$yday)
+
+
+# I thikn here we are going to see our missing value problem emerge
+ggplot(data = ndviMet) +
+  geom_tile(aes(x=yday, y = 1, fill=length(TMAX14d)))
+
+# histogram for teh landsat observations
+hist1 <- ggplot(data=ndviMet) +
+  geom_histogram(aes(x=yday, fill=mission), binwidth = 1) +
+  scale_fill_npg() +
+  theme_bw()
+
+png(file.path(path.figs, "landsat_histogram.png"), height=6, width=10, units="in", res=320)
+hist1
+dev.off()
+
+# going to move forward with the flow and see if the updating of the NDVI helps with some of the downstream oddities we've been seeing.
+
+
 
 # saving ndviMet to the data drive so that predictors are paired together with the NDVI data
 saveRDS(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.RDS"))
@@ -94,8 +176,8 @@ summary(metCor)
 # summary(metCov)
 
 # creating corr plot of met variable analysis
-# png(file.path(path.figs, paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
-png(file.path("figures", paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
+png(file.path(path.figs, paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
+# png(file.path("figures", paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
 ggcorrplot(metCor, type="lower", lab=T)
 dev.off()
 
