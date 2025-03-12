@@ -20,12 +20,13 @@ path.NDVI <- file.path(google.drive, "data", "data_raw")
 path.figs <- file.path(google.drive, "exploratory figures/FinalDailyModel")
 pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
 
+daily.pe <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")))
 
 # reading in data----
 # starting with the output file created in script 05_NDVI_MET_DilyModels-Final.R
 
 # Step 1: Read the model statistics CSV
-model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_PartialEffects_AllLandcovers.csv")))
+model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")))
 summary(model_stats)
 head(model_stats)
 
@@ -66,6 +67,8 @@ significant_stats_long$t_stat_category <- cut(
 # creating a filler date to get the months in there
 significant_stats_long$Date <- as.Date(significant_stats_long$yday - 1, origin = "2000-01-01")
 
+significant_stats_long$Variable <- factor(significant_stats_long$Variable, levels = c("tVal_Lag", "tVal_Drought", "tVal_Temp"))
+
 ggplot(data = significant_stats_long) + 
   facet_grid(LandCoverType~.) +
   geom_tile(aes(x = Date, y = Variable, fill = t_stat_category)) +
@@ -98,7 +101,7 @@ summary(rmse_fig_dat)
 
 
 ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
-  geom_line(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), linewidth=0.9) +
+  geom_line(aes(x=Date, y=RMSE/NDVI.norm, col=landcover), linewidth=0.9) +
   # geom_smooth(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), method="loess", se=T, span=0.65) +  # Adding the smooth line (using loess method)
   scale_color_manual(values=LC_color_palette) +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
@@ -108,46 +111,125 @@ ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
 # Figure C----
 # Plot Partial Effects through Time
 
-summary(model_stats)
+summary(daily.pe)
+mean.daily.pe <- aggregate(partial.Drought.date~landcover+yday, data=daily.pe, FUN=mean)
+mean.daily.pe$partial.Temp.date <- aggregate(partial.Temp.date~landcover+yday, data=daily.pe, FUN=mean)$partial.Temp.date
+mean.daily.pe$partial.Lag.date <- aggregate(partial.Lag.date~landcover+yday, data=daily.pe, FUN=mean)$partial.Lag.date
+# names(mean.daily.pe) <- c("landcover", "yday", "mean.pe.Drought", "mean.pe.Temp", "mean.pe.Lag")
+names(mean.daily.pe) <- c("landcover", "yday", "partial.Drought.date", "partial.Temp.date", "partial.Lag.date")
+
+mean.daily.pe.stack <- stack(mean.daily.pe[,c("partial.Drought.date", "partial.Temp.date", "partial.Lag.date")])
+mean.daily.pe.stack$landcover <- mean.daily.pe$landcover
+mean.daily.pe.stack$yday <- mean.daily.pe$yday
+names(mean.daily.pe.stack) <- c("peMean", "var", "landcover", "yday")
+# calculating SE for the daily PE
+se <- function(x) sd(x) / sqrt(length(x))
+se.daily.pe <- aggregate(partial.Drought.date~landcover+yday, data=daily.pe, FUN=se)
+se.daily.pe$partial.Temp.date <- aggregate(partial.Temp.date~landcover+yday, data=daily.pe, FUN=se)$partial.Temp.date
+se.daily.pe$partial.Lag.date <- aggregate(partial.Lag.date~landcover+yday, data=daily.pe, FUN=se)$partial.Lag.date
+# names(se.daily.pe) <- c("landcover", "yday", "se.pe.Drought", "se.pe.Temp", "se.pe.Lag")
+names(se.daily.pe) <- c("landcover", "yday", "partial.Drought.date", "partial.Temp.date", "partial.Lag.date")
+
+se.daily.pe.stack <- stack(se.daily.pe[,c("partial.Drought.date", "partial.Temp.date", "partial.Lag.date")])
+se.daily.pe.stack$landcover <- se.daily.pe$landcover
+se.daily.pe.stack$yday <- se.daily.pe$yday
+head(se.daily.pe.stack)
+names(se.daily.pe.stack) <- c("peStErr", "var", "landcover", "yday")
+
+mean.daily.pe.plot <- merge(mean.daily.pe.stack, se.daily.pe.stack, by=c("landcover", "yday", "var"))
+head(mean.daily.pe.plot)
+# creating upper and lower bound for ribbons
+mean.daily.pe.plot$peUB <- mean.daily.pe.plot$peMean + mean.daily.pe.plot$peStErr
+mean.daily.pe.plot$peLB <- mean.daily.pe.plot$peMean - mean.daily.pe.plot$peStErr
+
+head(mean.daily.pe.plot)
 
 # need to reshape to stack partial effects
-partial.dat <- model_stats[,c("partial.Drought", "partial.Temp", "partial.Lag")]
+partial.dat <- daily.pe[,c("partial.Drought.date", "partial.Temp.date", "partial.Lag.date")]
 partial.dat.stack <- stack(partial.dat)
 names(partial.dat.stack) <- c("values", "var")
 
-partial.dat.stack$yday <- model_stats$yday
-partial.dat.stack$landcover <- model_stats$landcover
-
-# adding in date variable as a filler to get the month names
-partial.dat.stack$date <- as.Date(partial.dat.stack$yday - 1, origin = "2000-01-01")
-
+partial.dat.stack$yday <- daily.pe$yday
+partial.dat.stack$landcover <- daily.pe$landcover
+partial.dat.stack$date <- as.Date(daily.pe$date)
+head(partial.dat.stack)
+# adding in year and month from date
+partial.dat.stack$year <- lubridate::year(partial.dat.stack$date)
+partial.dat.stack$month<- lubridate::month(partial.dat.stack$date)
+partial.dat.stack$month.name<- lubridate::month(partial.dat.stack$date, abb=T, label=T)
 # trying some plots
 
-forest.part <- partial.dat.stack[partial.dat.stack$landcover %in% "forest",]
-ggplot(data=forest.part) +
-  geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
-  scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
-  theme_bw()
+# mean effects overall yday
+ggplot(mean.daily.pe.plot) + facet_wrap(landcover~., scales="free")+
+  geom_hline(yintercept=0, linetype="dashed") +
+  #geom_ribbon(aes(x=yday, ymin=peLB, ymax=peUB, col=var), alpha=0.55) +
+  geom_line(aes(x=yday, y= peMean, col=var)) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73"))
+
+# all years
+ggplot(partial.dat.stack) + facet_grid(var~landcover, scales="free")+
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(aes(x=date, y=values, col=var)) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_date(expand = c(0,0),breaks = seq(min(partial.dat.stack$date), max(partial.dat.stack$date), by = "24 months"), 
+               labels = scales::date_format("%Y")) +
+  labs(x = "Month", y="Partial Effect to NDVI", title = 2005)
 
 
-ggplot(data=forest.part[!forest.part$var %in% "partial.Lag",]) +
-  geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
-  scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
-  theme_bw()
+# plotting 2005
+ggplot(partial.dat.stack[partial.dat.stack$year %in% 2005,]) + facet_wrap(landcover~., scales="free")+
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(aes(x=yday, y=values, col=var)) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  labs(x = "Month", y="Partial Effect to NDVI", title = 2005)
 
+# Plotting 2012
+  ggplot(partial.dat.stack[partial.dat.stack$year %in% 2012,]) + facet_wrap(landcover~., scales="free")+
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_line(aes(x=yday, y=values, col=var)) +
+    scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                  "partial.Drought.date" = "#0072B2", 
+                                  "partial.Lag.date" = "#009E73")) +
+    scale_x_continuous(
+      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+      labels = month.abb
+    ) +
+    labs(x = "Month", y="Partial Effect to NDVI", title=2012)
 
-ggplot(data=partial.dat.stack) + facet_wrap(landcover~.) +
-  geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
-  scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
-  theme_bw()
-
-
-ggplot(data=partial.dat.stack[!partial.dat.stack$var %in% "partial.Lag",]) +  facet_wrap(landcover~.) +
-  geom_line(aes(x=date, y=values, color=var)) +
-  scale_color_manual(values=c("partial.Drought" = "blue", "partial.Temp" = "red3", "partial.Lag"="forestgreen")) +
-  scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
-  theme_bw()
-
+  # plotting 2023
+  ggplot(partial.dat.stack[partial.dat.stack$year %in% 2023,]) + facet_wrap(landcover~., scales="free")+
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_line(aes(x=yday, y=values, col=var)) +
+    scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                  "partial.Drought.date" = "#0072B2", 
+                                  "partial.Lag.date" = "#009E73")) +
+    scale_x_continuous(
+      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+      labels = month.abb
+    ) +
+    labs(x = "Month", y="Partial Effect to NDVI", title=2023)
+  
+  # drought year comparison
+  ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005, 2012),]) + facet_grid(var~landcover, scales="free")+
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_line(aes(x=yday, y=values, col=as.factor(year))) +
+    # scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+    #                               "partial.Drought.date" = "#0072B2", 
+    #                               "partial.Lag.date" = "#009E73")) +
+    scale_x_continuous(
+      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+      labels = month.abb
+    ) +
+    labs(x = "Month", y="Partial Effect to NDVI", title=2023) +
+    theme_bw()
+  

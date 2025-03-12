@@ -513,7 +513,7 @@ summary(chiMetNorms)
 dim(chiMetNorms); dim(modOutAll)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
-
+# Partial Effects----
 # generating code to calculate the partial effects throughout the different DOY for the different land cover models.
 # need to bring in the mean conditions for DOY for temp, SPEI, and for NDVI
 library(dplyr)
@@ -608,7 +608,7 @@ modOutAll2$partial.Lag.climateNorm <- modOutAll2$coef.Lag * modOutAll2$ndviLag.n
 summary(modOutAll2)
 
 # saving data frame
-write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_PartialEffects_AllLandcovers.csv")), row.names=F)
+write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")), row.names=F)
 
 ####################
 # Calculating Partial Effects for individual years----
@@ -640,7 +640,7 @@ pe.date.df <- data.frame(date = chiMet$date,
 # merging in the NDVI lag. This will give us replicatino across the land covers
 summary(datLC)
 
-pe.date.df2 <- merge(datLC, pe.date.df, by="date")
+pe.date.df2 <- merge(datLC, pe.date.df, by="date", all.x=T)
 summary(pe.date.df2)
 
 # creating a yday variable to merge in the coefficients
@@ -648,13 +648,18 @@ pe.date.df2$yday <- yday(pe.date.df2$date)
 summary(pe.date.df2)
 
 # merging in coefficients
-pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag")], by=c("landcover", "yday"))
+pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag")], 
+                     by=c("landcover", "yday"))
 summary(pe.date.df3)
 
 # calculating partial effects
 pe.date.df3$partial.Drought.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Drought
 pe.date.df3$partial.Temp.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Temp
 pe.date.df3$partial.Lag.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Lag
+
+# saving data frame
+write.csv(pe.date.df3, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")), row.names=F)
+
 
 agg.test <- aggregate(partial.Drought.date~yday+landcover, data=pe.date.df3, FUN=mean)
 agg.test2 <- merge(agg.test, modOutAll2[,names(modOutAll2) %in% c("yday","landcover", "partial.Drought.climateNorm")], by=c("landcover", "yday"))
