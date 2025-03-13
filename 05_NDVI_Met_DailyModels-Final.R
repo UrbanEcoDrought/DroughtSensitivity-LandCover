@@ -507,7 +507,7 @@ head(chiMet[chiMet$yday>80 & chiMet$yday<90,])
 
 # Gettign the climatic norm to get our met partial effects
 # calculating normals just over the period that we have Satellite data
-chiMetNorms <- aggregate(cbind(SPEI14, TMAX30d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
+chiMetNorms <- aggregate(cbind(SPEI14, TMAX14d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
 summary(chiMetNorms)
 
 dim(chiMetNorms); dim(modOutAll)
@@ -576,7 +576,7 @@ summary(datLC2)
 datLC2$yday <- yday(datLC2$date)
 
 # had to separate, because there were some differnences in the dates that are available. Arises from teh NDVI lagged data.
-lag.dailyNorm<- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+lag.dailyNorm <- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 spei.dailyNorm<- aggregate(X14d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 tmax.dailyNorm <- aggregate(TMAX14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 ndvi.dailyNorm <- aggregate(NDVI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
@@ -620,9 +620,11 @@ head(modOutAll2)
 
 ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=TMAX14d)) +
   geom_tile()
+
+ggplot(data = chiMet[chiMet$date >="2009-01-01" & chiMet$date<="2013-01-01",], aes(x=date, y = TMAX14d)) +
+  geom_line()
 ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=SPEI14)) +
   geom_tile()
-
 ggplot(data = ndviMet[ndviMet$date >="2000-01-01",], aes(x=date, y=X14d.SPEI)) +
   geom_line()
 
@@ -654,8 +656,8 @@ summary(pe.date.df3)
 
 # calculating partial effects
 pe.date.df3$partial.Drought.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Drought
-pe.date.df3$partial.Temp.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Temp
-pe.date.df3$partial.Lag.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Lag
+pe.date.df3$partial.Temp.date <- pe.date.df3$TMAX.14d*pe.date.df3$coef.Temp
+pe.date.df3$partial.Lag.date <- pe.date.df3$NDVI.Lag14d*pe.date.df3$coef.Lag
 
 # saving data frame
 write.csv(pe.date.df3, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")), row.names=F)
