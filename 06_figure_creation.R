@@ -168,6 +168,14 @@ ggplot(mean.daily.pe.plot) + facet_wrap(landcover~., scales="free")+
                                 "partial.Drought.date" = "#0072B2", 
                                 "partial.Lag.date" = "#009E73"))
 
+ggplot(mean.daily.pe.plot[!mean.daily.pe.plot$var %in% "partial.Lag.date",]) + facet_wrap(landcover~., scales="free")+
+  geom_hline(yintercept=0, linetype="dashed") +
+  #geom_ribbon(aes(x=yday, ymin=peLB, ymax=peUB, col=var), alpha=0.55) +
+  geom_line(aes(x=yday, y= peMean, col=var)) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73"))
+
 # all years
 ggplot(partial.dat.stack) + facet_grid(var~landcover, scales="free")+
   geom_hline(yintercept=0, linetype="dashed") +
@@ -192,6 +200,19 @@ ggplot(partial.dat.stack[partial.dat.stack$year %in% 2005,]) + facet_wrap(landco
     labels = month.abb
   ) +
   labs(x = "Month", y="Partial Effect to NDVI", title = 2005)
+
+ggplot(partial.dat.stack[partial.dat.stack$year %in% 2005 & !partial.dat.stack$var %in% "partial.Lag.date",]) + facet_wrap(landcover~., scales="free")+
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(aes(x=yday, y=values, col=var)) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  labs(x = "Month", y="Partial Effect to NDVI", title = 2005)
+
 
 # Plotting 2012
   ggplot(partial.dat.stack[partial.dat.stack$year %in% 2012,]) + facet_wrap(landcover~., scales="free")+
@@ -219,6 +240,31 @@ ggplot(partial.dat.stack[partial.dat.stack$year %in% 2005,]) + facet_wrap(landco
     ) +
     labs(x = "Month", y="Partial Effect to NDVI", title=2023)
   
+  ggplot(partial.dat.stack[partial.dat.stack$year %in% 2012,]) + facet_wrap(landcover~., scales="free")+
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_line(aes(x=yday, y=values, col=var)) +
+    scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                  "partial.Drought.date" = "#0072B2", 
+                                  "partial.Lag.date" = "#009E73")) +
+    scale_x_continuous(
+      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+      labels = month.abb
+    ) +
+    labs(x = "Month", y="Partial Effect to NDVI", title=2012)
+  
+  # plotting 2023
+  ggplot(partial.dat.stack[partial.dat.stack$year %in% 2023 & !partial.dat.stack$var %in% "partial.Lag.date",]) + facet_wrap(landcover~., scales="free")+
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_line(aes(x=yday, y=values, col=var)) +
+    scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                  "partial.Drought.date" = "#0072B2", 
+                                  "partial.Lag.date" = "#009E73")) +
+    scale_x_continuous(
+      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+      labels = month.abb
+    ) +
+    labs(x = "Month", y="Partial Effect to NDVI", title=2023)
+  
   # drought year comparison
   ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005, 2012),]) + facet_grid(var~landcover, scales="free")+
     geom_hline(yintercept=0, linetype="dashed") +
@@ -230,6 +276,6 @@ ggplot(partial.dat.stack[partial.dat.stack$year %in% 2005,]) + facet_wrap(landco
       breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
       labels = month.abb
     ) +
-    labs(x = "Month", y="Partial Effect to NDVI", title=2023) +
+    labs(x = "Month", y="Partial Effect to NDVI", title="2005:2012 Comparison") +
     theme_bw()
   

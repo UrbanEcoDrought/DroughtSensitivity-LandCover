@@ -59,7 +59,7 @@ summary(ndvi.all)
 
 # reading in Trent's SPI
 ChicagolandSPI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPI.csv"))
-ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPEI.csv"))
+ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI_1991_2024.csv"))
 ChicagolandTemp <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_Temps.csv"))
 
 as.Date(ChicagolandSPEI$Date)

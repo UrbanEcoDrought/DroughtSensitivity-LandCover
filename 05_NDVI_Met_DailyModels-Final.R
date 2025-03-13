@@ -471,7 +471,7 @@ dev.off()
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Reading in our met vars
 ChicagolandSPI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPI.csv"))
-ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPEI.csv"))
+ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI_1991_2024.csv"))
 ChicagolandTemp <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_Temps.csv"))
 
 # create column with date in ISO format; making it lowercase "date" so that it merges easier
@@ -507,7 +507,7 @@ head(chiMet[chiMet$yday>80 & chiMet$yday<90,])
 
 # Gettign the climatic norm to get our met partial effects
 # calculating normals just over the period that we have Satellite data
-chiMetNorms <- aggregate(cbind(X14d.SPEI, TMAX30d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
+chiMetNorms <- aggregate(cbind(SPEI14, TMAX30d) ~ yday, data=chiMet[chiMet$date>=as.Date("2000-01-01"),], FUN=mean, na.rm=T)
 summary(chiMetNorms)
 
 dim(chiMetNorms); dim(modOutAll)
@@ -577,8 +577,8 @@ datLC2$yday <- yday(datLC2$date)
 
 # had to separate, because there were some differnences in the dates that are available. Arises from teh NDVI lagged data.
 lag.dailyNorm<- aggregate(NDVI.Lag14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
-spei.dailyNorm<- aggregate(X30d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
-tmax.dailyNorm <- aggregate(TMAX30d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+spei.dailyNorm<- aggregate(X14d.SPEI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
+tmax.dailyNorm <- aggregate(TMAX14d ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 ndvi.dailyNorm <- aggregate(NDVI ~ yday+landcover, data= datLC2, FUN=mean, na.rm=T) # landcover shouldn't make a difference for the metVars, but will for the lagged time series.
 # merging daily mean data  together
 # start with metVars
@@ -587,7 +587,7 @@ dailyMeans <- merge(spei.dailyNorm, tmax.dailyNorm, by=c("yday", "landcover"), a
 dailyMeans2 <- merge(dailyMeans, lag.dailyNorm, by=c("yday", "landcover"), all=T)
 dailyMeans3 <- merge(dailyMeans2, ndvi.dailyNorm, by=c("yday", "landcover"), all=T)
 summary(dailyMeans3)
-names(dailyMeans3) <- c("yday", "landcover", "spei30d.norm", "tmax30d.norm", "ndviLag.norm", "NDVI.norm")
+names(dailyMeans3) <- c("yday", "landcover", "spei14d.norm", "tmax14d.norm", "ndviLag.norm", "NDVI.norm")
 
 
 # merging in these daily means with the model output data
@@ -601,8 +601,8 @@ summary(modOutAll2)
 # calculating mean Climate partial effects
 # partial effect = coefficient * daily mean Var
 
-modOutAll2$partial.Drought.climateNorm <- modOutAll2$coef.Drought* modOutAll2$spei30d.norm
-modOutAll2$partial.Temp.climateNorm<- modOutAll2$coef.Temp * modOutAll2$tmax30d.norm
+modOutAll2$partial.Drought.climateNorm <- modOutAll2$coef.Drought* modOutAll2$spei14d.norm
+modOutAll2$partial.Temp.climateNorm<- modOutAll2$coef.Temp * modOutAll2$tmax14d.norm
 modOutAll2$partial.Lag.climateNorm <- modOutAll2$coef.Lag * modOutAll2$ndviLag.norm
 
 summary(modOutAll2)
@@ -620,7 +620,7 @@ head(modOutAll2)
 
 ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=TMAX14d)) +
   geom_tile()
-ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=X14d.SPEI)) +
+ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=SPEI14)) +
   geom_tile()
 
 ggplot(data = ndviMet[ndviMet$date >="2000-01-01",], aes(x=date, y=X14d.SPEI)) +
@@ -635,7 +635,7 @@ lag.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "coef.Lag
 
 # building a dataframe to house the date-driven partial effects
 pe.date.df <- data.frame(date = chiMet$date,
-                         SPEI.14d = chiMet$X14d.SPEI,
+                         SPEI.14d = chiMet$SPEI14,
                          TMAX.14d = chiMet$TMAX14d)
 # merging in the NDVI lag. This will give us replicatino across the land covers
 summary(datLC)
