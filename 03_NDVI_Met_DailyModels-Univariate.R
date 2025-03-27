@@ -58,35 +58,40 @@ summary(ndvi.all)
 
 
 # reading in Trent's SPI
-ChicagolandSPI <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_SPI.csv"))
+# 03/26/2025 updated to new met data from trent housed here: https://drive.google.com/drive/folders/1xyvKEy72cy1n3Z5R1D5E9f1vXApUFIiI
+ChicagolandSPI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPI.csv"))
 ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI_1991_2024.csv"))
-ChicagolandTemp <- read.csv(file.path(google.drive, "../data/data_sets/Daily Meteorological Data/Chicagoland_Daily_Temps.csv"))
+ChicagolandTmin <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_Tmin.csv"))
+ChicagolandTmax <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_Tmax.csv"))
 
-as.Date(ChicagolandSPEI$Date)
+# as.Date(ChicagolandSPEI$Date)
 
-test.precip14 <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_spi_spei_14d_all.csv", header=T)
-summary(test.precip14)
-test.precip14$date <- as.Date(test.precip14$date)
+# test.precip14 <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_spi_spei_14d_all.csv", header=T)
+# summary(test.precip14)
+# test.precip14$date <- as.Date(test.precip14$date)
+# 
+# ggplot(data=test.precip14[test.precip14$year==2022,]) +
+#   geom_line(aes(x=date, y=spi14d, col=type)) +
+#   theme_bw()
+# 
+# test.tempall <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_tmin_tmax_all.csv", header=T)
+# summary(test.tempall)
+# test.tempall$date <- as.Date(test.tempall$date)
+# 
+# ggplot(data=test.tempall[test.tempall$year==2022,]) +
+#   geom_line(aes(x=date, y=tmmx, col=type)) +
+#   theme_bw()
 
-ggplot(data=test.precip14[test.precip14$year==2022,]) +
-  geom_line(aes(x=date, y=spi14d, col=type)) +
-  theme_bw()
-
-test.tempall <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_tmin_tmax_all.csv", header=T)
-summary(test.tempall)
-test.tempall$date <- as.Date(test.tempall$date)
-
-ggplot(data=test.tempall[test.tempall$year==2022,]) +
-  geom_line(aes(x=date, y=tmmx, col=type)) +
-  theme_bw()
-
+# creatign a date column out of hte month, day, and year columns
 # create column with date in ISO format; making it lowercase "date" so that it merges easier
-ChicagolandSPI$date <- as.Date(ChicagolandSPI$Date, "%m/%d/%Y")
+ChicagolandSPI$date <- as.Date(paste(ChicagolandSPI$Year, ChicagolandSPI$Month, ChicagolandSPI$Day, sep="-"), "%Y-%m-%d")
 ChicagolandSPEI$date <- as.Date(ChicagolandSPEI$Date, "%m/%d/%Y")
-ChicagolandTemp$date <- as.Date(ChicagolandTemp$Date, "%m/%d/%Y")
+ChicagolandTmin$date <- as.Date(paste(ChicagolandTmin$Year, ChicagolandTmin$Month, ChicagolandTmin$Day, sep="-"), "%Y-%m-%d")
+ChicagolandTmax$date <- as.Date(paste(ChicagolandTmax$Year, ChicagolandTmax$Month, ChicagolandTmax$Day, sep="-"), "%Y-%m-%d")
+
 summary(ChicagolandSPI)
 summary(ChicagolandSPEI)
-summary(ChicagolandTemp)
+summary(ChicagolandTmin)
 
 dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTemp)
 

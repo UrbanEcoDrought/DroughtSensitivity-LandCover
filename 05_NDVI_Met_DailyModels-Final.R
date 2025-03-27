@@ -650,7 +650,7 @@ pe.date.df2$yday <- yday(pe.date.df2$date)
 summary(pe.date.df2)
 
 # merging in coefficients
-pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag")], 
+pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag", "coef.Int")], 
                      by=c("landcover", "yday"))
 summary(pe.date.df3)
 
@@ -658,6 +658,27 @@ summary(pe.date.df3)
 pe.date.df3$partial.Drought.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Drought
 pe.date.df3$partial.Temp.date <- pe.date.df3$TMAX.14d*pe.date.df3$coef.Temp
 pe.date.df3$partial.Lag.date <- pe.date.df3$NDVI.Lag14d*pe.date.df3$coef.Lag
+
+# Calculating residual for partial effect standardization process
+# NDVI - intercept - partialEffect.Lag = Residual
+pe.date.df3$resid <- pe.date.df3$NDVI - pe.date.df3$coef.Int - pe.date.df3$partial.Lag.date
+head(pe.date.df3)
+summary(pe.date.df3)
+
+ggplot(data=pe.date.df3) +
+  geom_vline(xintercept=0, linetype="dashed") +
+  geom_density(aes(x=resid))
+
+ggplot(data=pe.date.df3) +
+  geom_vline(xintercept=0, linetype="dashed") +
+  geom_density(aes(x=partial.Drought.date), col="orange2")+
+  geom_density(aes(x=partial.Temp.date), col="navy")+
+  geom_density(aes(x=partial.Lag.date), col="black")
+
+
+# creating standardized variables for plotting later
+pe.date.df3$peTempStd <- pe.date.df3$partial.Temp.date/pe.date.df3$NDVI
+pe.date.df3$peDroughtStd <- pe.date.df3$partial.Drought.date/pe.date.df3$NDVI
 
 # saving data frame
 write.csv(pe.date.df3, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")), row.names=F)
