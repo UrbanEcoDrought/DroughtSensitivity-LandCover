@@ -17,7 +17,7 @@ Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
 path.NDVI <- file.path(google.drive, "data", "data_raw")
-path.figs <- file.path(google.drive, "exploratory figures/FinalDailyModel")
+path.figs <- file.path(google.drive, "exploratory figures/prelim_pub_figs")
 pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
 
 daily.pe <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")))
@@ -70,6 +70,7 @@ significant_stats_long$Date <- as.Date(significant_stats_long$yday - 1, origin =
 significant_stats_long$Variable <- factor(significant_stats_long$Variable, levels = c("tVal_Lag", "tVal_Drought", "tVal_Temp"))
 significant_stats_long$in.gs <- ifelse(significant_stats_long$yday >=60 & significant_stats_long$yday <=304, "Yes", "No")
 
+significant_stats_long$LandCoverType <- factor(significant_stats_long$LandCoverType, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
 figA <- ggplot(data = significant_stats_long) + 
   facet_grid(LandCoverType~.) +
@@ -86,7 +87,7 @@ figA <- ggplot(data = significant_stats_long) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-png(filename="figures/figA.png", height=6, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figA.png"), height=6, width=10, units="in", res=220)
 print(figA)
 dev.off()
 
@@ -105,7 +106,7 @@ rmse_fig_dat <- model_stats
 # creating a filler date to get the months in there
 rmse_fig_dat$Date <- as.Date(rmse_fig_dat$yday - 1, origin = "2000-01-01")
 summary(rmse_fig_dat)
-
+rmse_fig_dat$landcover <- factor(rmse_fig_dat$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
 figB<- ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
   geom_vline(xintercept = c(as.Date("2000-03-01"), as.Date("2000-10-31")), linetype="dashed") +
@@ -116,7 +117,7 @@ figB<- ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
   theme_bw() +
   theme(legend.position = "bottom")
 
-png(filename="figures/figB.png", height=6, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figB.png"), height=6, width=10, units="in", res=220)
 print(figB)
 dev.off()
 # Figure C----
@@ -165,10 +166,10 @@ figC2 <- ggplot(partial.dat.stack[partial.dat.stack$var %in% c("partial.Temp.dat
   labs(x = "Month", y="Partial Effect to NDVI", title = "All Years")+
   theme_bw()
 
-png(filename="figures/figC1.png", height=6, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC1.png"), height=6, width=10, units="in", res=220)
 print(figC1)
 dev.off()
-png(filename="figures/figC2.png", height=6, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC2.png"), height=6, width=10, units="in", res=220)
 print(figC2)
 dev.off()
 
@@ -223,12 +224,32 @@ figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012)
 
 
 
-png(filename="figures/figC3.png", height=8, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC3.png"), height=8, width=10, units="in", res=220)
 print(figC3)
 dev.off()
-png(filename="figures/figC3b.png", height=8, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC3b.png"), height=8, width=10, units="in", res=220)
 print(figC3b)
 dev.off()
-png(filename="figures/figC4.png", height=8, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC4.png"), height=8, width=10, units="in", res=220)
 print(figC4)
+dev.off()
+
+
+figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_tile(aes(x=yday, y=1, fill=values), linewidth=0.8) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+png(filename=file.path(path.figs,"figC_ndvi_check.png"), height=8, width=10, units="in", res=220)
+print(figC_ndvi)
 dev.off()

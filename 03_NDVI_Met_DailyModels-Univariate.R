@@ -8,7 +8,7 @@ library(ggsci)
 Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
-path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract") # we haven't been the most consistent with our file paths.
+path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract-RAW") # we haven't been the most consistent with our file paths.
 path.figs <- file.path(google.drive, "exploratory figures/ModelSelection-Univariate")
 pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Univariate")
 
@@ -36,7 +36,7 @@ if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
 
 # ndvi.all <- readRDS(file.path(google.drive, "data/r_files/processed_files/landsat_ndvi_all.RDS"))
 
-ndvi.all <- read.csv("G:/Shared drives/Urban Ecological Drought/data/UrbanEcoDrought_NDVI_LocalExtract/allNDVI_data.csv", header=T)
+ndvi.all <- read.csv("G:/Shared drives/Urban Ecological Drought/data/UrbanEcoDrought_NDVI_LocalExtract-RAW/NDVIall_latest.csv", header=T)
 
 head(ndvi.all)
 ndvi.all$mission <- as.factor(ndvi.all$mission)
@@ -52,35 +52,17 @@ ggplot(data=ndvi.all) + facet_grid(landcover~.) +
   geom_tile(aes(x=date, y = 1, fill=mission))
 
 
-# subset to just 2001-01-01 to 2023-12-31
-ndvi.all <- ndvi.all[ndvi.all$date <= as.Date("2023-12-31"),]
+# subset to just 2001-01-01 to 2024-12-31
+ndvi.all <- ndvi.all[ndvi.all$date <= as.Date("2024-12-31"),]
 summary(ndvi.all)
 
 
 # reading in Trent's SPI
 # 03/26/2025 updated to new met data from trent housed here: https://drive.google.com/drive/folders/1xyvKEy72cy1n3Z5R1D5E9f1vXApUFIiI
 ChicagolandSPI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPI.csv"))
-ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI_1991_2024.csv"))
+ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI.csv"))
 ChicagolandTmin <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_Tmin.csv"))
 ChicagolandTmax <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_Tmax.csv"))
-
-# as.Date(ChicagolandSPEI$Date)
-
-# test.precip14 <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_spi_spei_14d_all.csv", header=T)
-# summary(test.precip14)
-# test.precip14$date <- as.Date(test.precip14$date)
-# 
-# ggplot(data=test.precip14[test.precip14$year==2022,]) +
-#   geom_line(aes(x=date, y=spi14d, col=type)) +
-#   theme_bw()
-# 
-# test.tempall <- read.csv("G:/Shared drives/Urban Ecological Drought/data/GRIDMET_data/all_variables_sorted_by_LC_type/GRIDMET_tmin_tmax_all.csv", header=T)
-# summary(test.tempall)
-# test.tempall$date <- as.Date(test.tempall$date)
-# 
-# ggplot(data=test.tempall[test.tempall$year==2022,]) +
-#   geom_line(aes(x=date, y=tmmx, col=type)) +
-#   theme_bw()
 
 # creatign a date column out of hte month, day, and year columns
 # create column with date in ISO format; making it lowercase "date" so that it merges easier
@@ -89,17 +71,30 @@ ChicagolandSPEI$date <- as.Date(ChicagolandSPEI$Date, "%m/%d/%Y")
 ChicagolandTmin$date <- as.Date(paste(ChicagolandTmin$Year, ChicagolandTmin$Month, ChicagolandTmin$Day, sep="-"), "%Y-%m-%d")
 ChicagolandTmax$date <- as.Date(paste(ChicagolandTmax$Year, ChicagolandTmax$Month, ChicagolandTmax$Day, sep="-"), "%Y-%m-%d")
 
+# making day, month and yday vars for SPEI
+ChicagolandSPEI$Day <- lubridate::day(ChicagolandSPEI$date)
+ChicagolandSPEI$Month <- lubridate::month(ChicagolandSPEI$date)
+ChicagolandSPEI$DOY <- lubridate::yday(ChicagolandSPEI$date)
+
+
 summary(ChicagolandSPI)
 summary(ChicagolandSPEI)
 summary(ChicagolandTmin)
 
-dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTemp)
+dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTmin); dim(ChicagolandTmax)
 
 # Combining met data together in a single data frame
-chiMet <- merge(ChicagolandTemp, ChicagolandSPI, all=T)
-chiMet <- merge(chiMet, ChicagolandSPEI , all=T)
+chiMetpre1 <- merge(ChicagolandTmin, ChicagolandSPI, all=T)
+chiMetpre2 <- merge(chiMetpre1, ChicagolandSPEI , all=T)
+chiMet <- merge(chiMetpre2, ChicagolandTmax, all=T)
+
+# removing the 7day variable that snuck in there
+head(chiMet)
+chiMet <- chiMet[,!names(chiMet) %in% c("Tmax_7day", "Tmin_7day")]
+
 summary(chiMet) # precip variables will have some NA's based on how they are calculated
 dim(chiMet)
+
 
 # adding yday to chiMet
 chiMet$yday <- yday(chiMet$date)
@@ -122,24 +117,25 @@ ggplot(data=chiMetcheck) + facet_wrap(var~.) +
 summary(ndvi.all)
 summary(chiMet)
 
-# checking for complete DOY
+# checking for complete DOY in both NDVI and Met data
 yday.comp <- seq(1:365)
 ndviAll.yday <-unique(ndvi.all$yday)
 chiMet.yday <- unique(chiMet$yday)
 
 chiMet.yday.check <- setdiff(yday.comp, chiMet.yday) # all yday present
-ndvi.yday.check <- setdiff(yday.comp, ndviAll.yday) # doy55 absent
-missing.ndvi <- setdiff(chiMet.yday, ndviAll.yday) # doy55 absent
-
-ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F, by=c("date"))
+ndvi.yday.check <- setdiff(yday.comp, ndviAll.yday) 
+missing.ndvi <- setdiff(chiMet.yday, ndviAll.yday)
+# # # ## # # ## # # ## # # ## # # ## # # ## # # ## # # #
+# Merging met data and ndvi data together
+ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F, by=c("date", "yday"))
 summary(ndviMet)
-ndviMet$yday <- yday(ndviMet$date)
+
 ndviMet.yday.check <- setdiff(yday.comp, ndviMet$yday)
 
 
-# I thikn here we are going to see our missing value problem emerge
+# I think here we are going to see our missing value problem emerge--if we have one... note: seems fixed with the latest ndvi data 03-31-2024
 ggplot(data = ndviMet) +
-  geom_tile(aes(x=yday, y = 1, fill=length(TMAX14d)))
+  geom_tile(aes(x=yday, y = 1, fill=length(Tmax_14day)))
 
 # histogram for teh landsat observations
 hist1 <- ggplot(data=ndviMet) +
@@ -150,9 +146,6 @@ hist1 <- ggplot(data=ndviMet) +
 png(file.path(path.figs, "landsat_histogram.png"), height=6, width=10, units="in", res=320)
 hist1
 dev.off()
-
-# going to move forward with the flow and see if the updating of the NDVI helps with some of the downstream oddities we've been seeing.
-
 
 
 # saving ndviMet to the data drive so that predictors are paired together with the NDVI data
@@ -169,8 +162,12 @@ write.csv(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_
 # Starting with just doing them individually before doing any sort of selection
 #########################################
 LCtypes <- unique(ndviMet$landcover)
-timescales <- c("14d", "30d", "60d", "90d")
-varsMet <- c(paste0("TMIN", timescales), paste0("TMAX", timescales), paste0("X", timescales, ".SPI"), paste0("X", timescales, ".SPEI"))
+# timescales <- c("14d", "30d", "60d", "90d")
+# varsMet <- c(paste0("TMIN", timescales), paste0("TMAX", timescales), paste0("X", timescales, ".SPI"), paste0("X", timescales, ".SPEI"))
+
+# some of the met variable names changed on the latest data update. So removing the non-met vars here and saving met names.
+varsMet <- names(ndviMet)[!names(ndviMet) %in% c("date", "Date", "yday", "mission", "NDVI", "type", "year", "landcover", 
+                                  "Month", "Day", "Year", "DOY")]
 names(ndviMet)
 
 # quick correlation of the met variabels to see how tightly the different timescales are correlated

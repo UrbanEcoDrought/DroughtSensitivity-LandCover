@@ -46,13 +46,13 @@ aggYDAY2$dR2.rank[order(aggYDAY2$dR2, decreasing=T)] <- 1:nrow(aggYDAY2)
 aggYDAY2$dRMSE.rank[order(aggYDAY2$dRMSE, decreasing=F)] <- 1:nrow(aggYDAY2)
 aggYDAY2
 
-# Looks like both orders of aggregating give you the same answer
+# Looks like both orders of aggregating give you similar, but not the same answers.
 aggLC2$rank.avg <- apply(aggLC2[,c("dR2.rank", "dRMSE.rank")], 1, mean)
 aggLC2$RankComb[order(aggLC2$rank.avg, decreasing=F)] <- 1:nrow(aggLC2)
 aggLC2
 
-mean(aggLC2$RankComb[grep("TMAX", aggLC2$model)])
-mean(aggLC2$RankComb[grep("TMIN", aggLC2$model)])
+mean(aggLC2$RankComb[grep("Tmax", aggLC2$model)])
+mean(aggLC2$RankComb[grep("Tmin", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPEI", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPI", aggLC2$model)])
 
@@ -61,8 +61,8 @@ mean(aggLC2$RankComb[grep("SPI", aggLC2$model)])
 
 
 LCtypes <- unique(ndviMet$landcover)
-varsDrought <- c("X14d.SPEI", "X30d.SPEI", "X14d.SPI", "X30d.SPI")
-varsTemp <- c("TMAX14d", "TMAX30d", "TMAX60d", "TMIN30d", "TMIN60d")
+varsDrought <- c("SPEI14", "SPEI30", "SPI30day", "SPI60day")
+varsTemp <- c("Tmax_14day", "Tmax_30day", "Tmax_60day", "Tmin_60day")
 modType <- c("additive", "interaction")
 
 # Creating a dataframe with all permutations and giving it names
