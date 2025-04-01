@@ -205,6 +205,21 @@ figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012)
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
+figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
+  scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
+                                "partial.Drought.date" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
 # Scaled PE
 figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd", "peDroughtStd") & partial.dat.stack$month %in% c(3:10),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
@@ -230,6 +245,10 @@ dev.off()
 png(filename=file.path(path.figs,"figC3b.png"), height=8, width=10, units="in", res=220)
 print(figC3b)
 dev.off()
+png(filename=file.path(path.figs,"figC3c.png"), height=8, width=10, units="in", res=220)
+print(figC3c)
+dev.off()
+
 png(filename=file.path(path.figs,"figC4.png"), height=8, width=10, units="in", res=220)
 print(figC4)
 dev.off()
