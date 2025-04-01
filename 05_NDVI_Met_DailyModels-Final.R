@@ -98,6 +98,7 @@ mean(aggXn2$RankComb[grep("SPEI", aggXn2$DroughtVar)])
 LCtypes <- unique(ndviMet$landcover)
 modOutListAdd1 <- list()
 modOutListAdd2 <- list()
+modOutListAdd3 <- list()
 modOutListInt1 <- list()
 modOutListInt2 <- list()
 for(LC in LCtypes){
@@ -129,11 +130,13 @@ for(LC in LCtypes){
   
   modsListAdd1 <- list()
   modsListAdd2 <- list()
+  modsListAdd3 <- list()
   modsListInt1 <- list()
   modsListInt2 <- list()
   
   # add1: 14dSPEI + 30d TMAX (#1)
   # add2: 30dSPEI + 30d TMAX (#2)
+  # add3: SPI30day + 30d Tmax (#4)
   # int1: 30d SPEI x 30d TMAX (#1)
   # int2: 30d SPEI x 14d TMAX (#2)
   
@@ -147,6 +150,13 @@ for(LC in LCtypes){
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
                             pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
+  mod.outAdd3 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPI30day", TempVar="Tmax_30day",  Rsq=NA, RMSE=NA, 
+                            coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
+                            err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
+                            tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
+                            pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
+  
+  
   mod.outInt1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_30day", Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, coef.TxD=NA, coef.LagxD=NA, coef.LagxT=NA, coef.DxTxLag=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , err.TxD=NA , err.LagxD=NA , err.LagxT=NA , err.DxTxLag=NA , 
@@ -207,6 +217,17 @@ for(LC in LCtypes){
     mod.outAdd2[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd2$tTable[,"Std.Error"]
     mod.outAdd2[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag")] <- sumAdd2$tTable[,"t-value"]
     mod.outAdd2[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag")] <- sumAdd2$tTable[,"p-value"]
+    
+    modAdd3 <- nlme::lme(NDVI ~ SPI30day + Tmax_30day + NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
+    sumAdd3 <- summary(modAdd3)
+    modsListAdd3[[i]] <- modAdd3
+    mod.outAdd3$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd3)[2]
+    mod.outAdd3$RMSE[i] <- sqrt(mean(resid(modAdd3)^2))
+    
+    mod.outAdd3[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd3$tTable[,"Value"]
+    mod.outAdd3[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd3$tTable[,"Std.Error"]
+    mod.outAdd3[i,c("tVal.Int", "tVal.Drought", "tVal.Temp", "tVal.Lag")] <- sumAdd3$tTable[,"t-value"]
+    mod.outAdd3[i,c("pVal.Int", "pVal.Drought", "pVal.Temp", "pVal.Lag")] <- sumAdd3$tTable[,"p-value"]
 
     modInt1 <- nlme::lme(NDVI ~ SPEI30*Tmax_30day*NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
     sumInt1 <- summary(modInt1)
@@ -235,6 +256,7 @@ for(LC in LCtypes){
   # summary(mod.out)
   modOutListAdd1[[LC]] <- mod.outAdd1
   modOutListAdd2[[LC]] <- mod.outAdd2
+  modOutListAdd3[[LC]] <- mod.outAdd3
   modOutListInt1[[LC]] <- mod.outInt1
   modOutListInt2[[LC]] <- mod.outInt2
   
@@ -243,6 +265,9 @@ for(LC in LCtypes){
   
   write.csv(mod.outAdd2, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI30-TMAX30_", LC, ".csv")), row.names=F)
   saveRDS(modsListAdd2, file.path(pathSave, paste0("DailyModel_FinalModels_Additive_SPEI30-TMAX30_", LC, ".RDS")))
+  
+  write.csv(mod.outAdd3, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPI30-TMAX30_", LC, ".csv")), row.names=F)
+  saveRDS(modsListAdd3, file.path(pathSave, paste0("DailyModel_FinalModels_Additive_SPI30-TMAX30_", LC, ".RDS")))
   
   write.csv(mod.outInt1, file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Interactive_SPEI30-TMAX30_", LC, ".csv")), row.names=F)
   saveRDS(modsListInt1, file.path(pathSave, paste0("DailyModel_FinalModels_Interactive_SPI14-TMAX14_", LC, ".RDS")))
@@ -345,6 +370,7 @@ for(LC in LCtypes){
 
 modOutAllAdd1 <- dplyr::bind_rows(modOutListAdd1)
 modOutAllAdd2 <- dplyr::bind_rows(modOutListAdd2)
+modOutAllAdd3 <- dplyr::bind_rows(modOutListAdd3)
 modOutAllInt1 <- dplyr::bind_rows(modOutListInt1)
 modOutAllInt2 <- dplyr::bind_rows(modOutListInt2)
 
@@ -492,13 +518,36 @@ ChicagolandSPEI$DOY <- lubridate::yday(ChicagolandSPEI$date)
 summary(ChicagolandSPI)
 summary(ChicagolandSPEI)
 summary(ChicagolandTmin)
+summary(ChicagolandTmax)
 
-dim(ChicagolandSPI); dim(ChicagolandSPEI); dim(ChicagolandTmin); dim(ChicagolandTmax)
+# cleaning up the dataframes a bit so that the merges go through easier
+names(ChicagolandSPI)
+ChicagolandSPI2 <- ChicagolandSPI[,!names(ChicagolandSPI) %in% c("Year", "Month", "Day", "DOY")]
 
+names(ChicagolandSPEI)
+ChicagolandSPEI2 <- ChicagolandSPEI[,!names(ChicagolandSPEI) %in% c("Date", "Month", "Day", "DOY")]
+
+names(ChicagolandTmin)
+ChicagolandTmin2 <- ChicagolandTmin[,!names(ChicagolandTmin) %in% c("Year", "Month", "Day", "DOY")]
+
+names(ChicagolandTmax)
+ChicagolandTmax2 <- ChicagolandTmax[,!names(ChicagolandTmax) %in% c("Year", "Month", "Day", "DOY")]
+
+dim(ChicagolandSPI2); dim(ChicagolandSPEI2); dim(ChicagolandTmin2); dim(ChicagolandTmax2)
+summary(ChicagolandSPI2)
+summary(ChicagolandSPEI2)
+summary(ChicagolandTmin2)
+summary(ChicagolandTmax2)
 # Combining met data together in a single data frame
-chiMetpre1 <- merge(ChicagolandTmin, ChicagolandSPI, all=T)
-chiMetpre2 <- merge(chiMetpre1, ChicagolandSPEI , all=T)
-chiMet <- merge(chiMetpre2, ChicagolandTmax, all=T)
+# chiMetpre1 <- merge(ChicagolandTmin, ChicagolandSPI, all=T, by=c("date"))
+# chiMetpre2 <- merge(chiMetpre1, ChicagolandSPEI , all=T)
+# chiMet <- merge(chiMetpre2, ChicagolandTmax, all=T)
+# summary(chiMet)
+library(dplyr)
+library(purrr)
+df_list <- list(ChicagolandSPI2, ChicagolandSPEI2, ChicagolandTmax2, ChicagolandTmin2)
+chiMet <- reduce(df_list, full_join, by="date")
+summary(chiMet)
 
 # removing the 7day variable that snuck in there
 head(chiMet)
@@ -621,12 +670,15 @@ summary(chiMet)
 summary(modOutAll2) # wanting this data frame for just the coefficients
 head(modOutAll2)
 
-ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=Tmax_30day)) +
+# limiting chiMet to the date range we have data for
+chiMet2 <- chiMet[chiMet$date >= as.Date("2000-01-01"),]
+
+ggplot(data = chiMet2, aes(x=date, y = 1, fill=Tmax_30day)) +
   geom_tile()
 
-ggplot(data = chiMet[chiMet$date >="2009-01-01" & chiMet$date<="2013-01-01",], aes(x=date, y = Tmax_30day)) +
+ggplot(data = chiMet2[chiMet2$date >="2009-01-01" & chiMet2$date<="2013-01-01",], aes(x=date, y = Tmax_30day)) +
   geom_line()
-ggplot(data = chiMet[chiMet$date >="2000-01-01",], aes(x=date, y = 1, fill=SPEI14)) +
+ggplot(data = chiMet2[chiMet2$date >="2000-01-01",], aes(x=date, y = 1, fill=SPEI14)) +
   geom_tile()
 ggplot(data = ndviMet[ndviMet$date >="2000-01-01",], aes(x=date, y=SPEI14)) +
   geom_line()
@@ -639,13 +691,25 @@ temp.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "TempVar
 lag.coeff <- modOutAll2[,names(modOutAll2) %in% c("yday", "landcover", "coef.Lag")]
 
 # building a dataframe to house the date-driven partial effects
-pe.date.df <- data.frame(date = chiMet$date,
-                         SPEI.14d = chiMet$SPEI14,
-                         TMAX.30d = chiMet$Tmax_30day)
+lc.list <- unique(modOutAll2$landcover)
+
+pe.date.df <- data.frame(date = chiMet2$date,
+                         SPEI.14d = chiMet2$SPEI14,
+                         TMAX.30d = chiMet2$Tmax_30day)
+lcDate.df <- expand.grid(date = chiMet2$date,
+                          landcover = lc.list)
+
+pe.date.df <- merge(pe.date.df, lcDate.df, by="date", all.y=T)
+summary(pe.date.df)
 # merging in the NDVI lag. This will give us replicatino across the land covers
 summary(datLC)
 
-pe.date.df2 <- merge(datLC, pe.date.df, by="date", all.x=T)
+# want to keep all of the climate date, so doing all=T
+# limiting the chi.met merge to just the date range of the NDVI data
+pe.date.df2 <- merge(datLC, pe.date.df, by=c("date","landcover"), all=T)
+pe.date.df2 <- datLC %>%
+  full_join(pe.date.df, by=c("date", "landcover"))
+
 summary(pe.date.df2)
 
 # creating a yday variable to merge in the coefficients
@@ -655,6 +719,10 @@ summary(pe.date.df2)
 # merging in coefficients
 pe.date.df3 <- merge(pe.date.df2, modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag", "coef.Int")], 
                      by=c("landcover", "yday"), all.x=T)
+pe.date.df3 <- pe.date.df2 %>%
+  full_join(modOutAll2[, c("yday", "landcover", "coef.Drought", "coef.Temp", "coef.Lag", "coef.Int")],
+            by=c("landcover", "yday"))
+
 summary(pe.date.df3)
 
 # calculating partial effects
@@ -662,26 +730,44 @@ pe.date.df3$partial.Drought.date <- pe.date.df3$SPEI.14d*pe.date.df3$coef.Drough
 pe.date.df3$partial.Temp.date <- pe.date.df3$TMAX.30d*pe.date.df3$coef.Temp
 pe.date.df3$partial.Lag.date <- pe.date.df3$NDVI.Lag14d*pe.date.df3$coef.Lag
 
-# Calculating residual for partial effect standardization process
-# NDVI - intercept - partialEffect.Lag = Residual
-pe.date.df3$resid <- pe.date.df3$NDVI - pe.date.df3$coef.Int - pe.date.df3$partial.Lag.date
-head(pe.date.df3)
-summary(pe.date.df3)
-
-ggplot(data=pe.date.df3) +
-  geom_vline(xintercept=0, linetype="dashed") +
-  geom_density(aes(x=resid))
-
-ggplot(data=pe.date.df3) +
-  geom_vline(xintercept=0, linetype="dashed") +
-  geom_density(aes(x=partial.Drought.date), col="orange2")+
-  geom_density(aes(x=partial.Temp.date), col="navy")+
-  geom_density(aes(x=partial.Lag.date), col="black")
+# # Calculating residual for partial effect standardization process
+# # NDVI - intercept - partialEffect.Lag = Residual
+# pe.date.df3$resid <- pe.date.df3$NDVI - pe.date.df3$coef.Int - pe.date.df3$partial.Lag.date
+# head(pe.date.df3)
+# summary(pe.date.df3)
+# 
+# ggplot(data=pe.date.df3) +
+#   geom_vline(xintercept=0, linetype="dashed") +
+#   geom_density(aes(x=resid))
+# 
+# ggplot(data=pe.date.df3) +
+#   geom_vline(xintercept=0, linetype="dashed") +
+#   geom_density(aes(x=partial.Drought.date), col="orange2")+
+#   geom_density(aes(x=partial.Temp.date), col="navy")+
+#   geom_density(aes(x=partial.Lag.date), col="black")
 
 
 # creating standardized variables for plotting later
-pe.date.df3$peTempStd <- pe.date.df3$partial.Temp.date/pe.date.df3$NDVI
-pe.date.df3$peDroughtStd <- pe.date.df3$partial.Drought.date/pe.date.df3$NDVI
+# note: standardizing by NDVI leaves too many gaps becasue of NDVI's irregular passes
+
+# pe.date.df3$peTempStd <- pe.date.df3$partial.Temp.date/pe.date.df3$NDVI
+# pe.date.df3$peDroughtStd <- pe.date.df3$partial.Drought.date/pe.date.df3$NDVI
+
+######
+# Alternative PE standardizing----
+# adding in a month column
+pe.date.df3$month <- month(pe.date.df3$date)
+mean.gs.ndvi <- aggregate(NDVI~landcover, data=pe.date.df3[pe.date.df3$month %in% c(4:10),], FUN=mean, na.rm=T)
+
+for(i in unique(mean.gs.ndvi$landcover)){
+  temp <- pe.date.df3[pe.date.df3$landcover==i,]
+  ndvi.lc.mean <- mean.gs.ndvi[mean.gs.ndvi$landcover==i,"NDVI"]
+  
+  pe.date.df3[pe.date.df3$landcover==i, "peDroughtStd.gsMean"] <- temp$partial.Drought.date/ndvi.lc.mean
+  pe.date.df3[pe.date.df3$landcover==i, "peTempStd.gsMean"] <- temp$partial.Temp.date/ndvi.lc.mean
+  pe.date.df3[pe.date.df3$landcover==i, "peLagStd.gsMean"] <- temp$partial.Lag.date/ndvi.lc.mean
+}
+head(pe.date.df3)
 
 # saving data frame
 write.csv(pe.date.df3, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")), row.names=F)
