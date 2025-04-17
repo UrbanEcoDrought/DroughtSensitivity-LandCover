@@ -234,3 +234,50 @@ partial.comp <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011
 png(filename=file.path(path.figs,"ADD1_vs_Add3_partialEffects.png"), height=10, width=10, units="in", res=220)
 print(partial.comp)
 dev.off()
+
+#############################
+# RMSE Comparison----
+
+modStatsAll <- read.csv(file.path(google.drive, "data/processed_files/ModelSelection-Multivariate", paste0("DailyModel_VarSelection-Multivariate_ModelStats-ALL.csv")))
+head(modStatsAll)
+unique(modStatsAll$model)
+
+model.list <- c("SPEI30-Tmax_14day-additive", "SPI30day-Tmax_30day-additive")
+
+mod13.stats <- modStatsAll[modStatsAll$model %in% model.list,]
+mod13.stats$landcover <- factor(mod13.stats$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+summary(mod13.stats)
+
+model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")))
+summary(model_stats)
+head(model_stats)
+mod13.stats$rmse.std <- NA
+for(i in unique(mod13.stats$model)){
+  mod.temp <- mod13.stats[mod13.stats$model==i,]
+  for(j in unique(mod13.stats$landcover)){
+    mod.lc.temp <- mod.temp[mod.temp$landcover==j,]
+    for(k in unique(mod13.stats$yday)){
+      temp.df <- mod.lc.temp[mod.lc.temp$yday==k,]
+      ndvi.temp <- model_stats[model_stats$landcover==j & model_stats$yday==k, "NDVI.norm"]
+      
+      mod13.stats[mod13.stats$model==i & mod13.stats$landcover==j & mod13.stats$yday== k, "rmse.std"] <- temp.df$RMSE/ndvi.temp
+      
+    }
+  }
+}
+
+rmse.comp <- ggplot(data=mod13.stats) + facet_wrap(landcover~.) +
+  geom_line(aes(x=yday, y=RMSE, col=model), linewidth=0.75) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  theme_bw()+
+  #scale_y_continuous(limits=c(0,0.135)) +
+  # coord_cartesian(ylim=c(0,2)) +
+  scale_x_continuous(expand=c(0,0),
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = unique(partial.dat.stack$month.name)
+  )
+
+
+png(filename=file.path(path.figs,"ADD1_vs_Add3_RMSE Comparison.png"), height=10, width=10, units="in", res=220)
+print(rmse.comp)
+dev.off()
