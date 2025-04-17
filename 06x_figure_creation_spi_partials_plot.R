@@ -145,9 +145,11 @@ figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012)
 png(filename=file.path(path.figs,"figC3.png"), height=8, width=10, units="in", res=220)
 print(figC3)
 dev.off()
+
 png(filename=file.path(path.figs,"figC3b.png"), height=8, width=10, units="in", res=220)
 print(figC3b)
 dev.off()
+
 png(filename=file.path(path.figs,"figC3c.png"), height=8, width=10, units="in", res=220)
 print(figC3c)
 dev.off()
@@ -281,3 +283,38 @@ rmse.comp <- ggplot(data=mod13.stats) + facet_wrap(landcover~.) +
 png(filename=file.path(path.figs,"ADD1_vs_Add3_RMSE Comparison.png"), height=10, width=10, units="in", res=220)
 print(rmse.comp)
 dev.off()
+
+# # # # # # # # # # # # # #
+# Directional Error Comparison----
+
+SPEImodel_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")))
+summary(SPEImodel_stats)
+SPImodel_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd3_Stats_climateNormPartialEffects_AllLandcovers.csv")))
+summary(SPImodel_stats)
+
+drought.err.comp <- ggplot() + facet_wrap(landcover~.) +
+  geom_line(data = SPEImodel_stats, aes(x=yday, y=err.Drought, col="SPEI_14day"), linewidth=0.75) +
+  geom_line(data = SPImodel_stats, aes(x=yday, y=err.Drought, col="SPI_30day"), linewidth=0.75) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  scale_color_manual(values = c("SPEI_14day" = "orchid4", "SPI_30day" = "forestgreen" ))
+  theme_bw()+
+  #scale_y_continuous(limits=c(0,0.135)) +
+  # coord_cartesian(ylim=c(0,2)) +
+  scale_x_continuous(expand=c(0,0),
+                     breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+                     labels = unique(partial.dat.stack$month.name)
+  )
+
+  
+  temp.err.comp <- ggplot() + facet_wrap(landcover~.) +
+    geom_line(data = SPEImodel_stats, aes(x=yday, y=err.Temp, col="SPEI_14day"), linewidth=0.75) +
+    geom_line(data = SPImodel_stats, aes(x=yday, y=err.Temp, col="SPI_30day"), linewidth=0.75) +
+    geom_hline(yintercept=0, linetype="dashed") +
+    scale_color_manual(values = c("SPEI_14day" = "orchid4", "SPI_30day" = "forestgreen" ))
+  theme_bw()+
+    #scale_y_continuous(limits=c(0,0.135)) +
+    # coord_cartesian(ylim=c(0,2)) +
+    scale_x_continuous(expand=c(0,0),
+                       breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+                       labels = unique(partial.dat.stack$month.name)
+    )
