@@ -112,7 +112,7 @@ figB<- ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
   geom_vline(xintercept = c(as.Date("2000-03-01"), as.Date("2000-10-31")), linetype="dashed") +
   geom_line(aes(x=Date, y=RMSE/NDVI.norm, col=landcover), linewidth=0.9) +
   # geom_smooth(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), method="loess", se=T, span=0.65) +  # Adding the smooth line (using loess method)
-  scale_color_manual(values=LC_color_palette) +
+  scale_color_manual(values=LC_color_palette, name="Land Cover") +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
   theme_bw() +
   theme(legend.position = "bottom")
@@ -120,6 +120,17 @@ figB<- ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
 png(filename=file.path(path.figs,"figB.png"), height=6, width=10, units="in", res=220)
 print(figB)
 dev.off()
+
+figB2 <- ggplot(data=rmse_fig_dat) + facet_grid(landcover~.) +
+  geom_vline(xintercept = c(as.Date("2000-03-01"), as.Date("2000-10-31")), linetype="dashed") +
+  geom_hline(yintercept=0, linetype="solid", col="black") +
+  geom_line(aes(x=Date, y=Error, col=landcover), linewidth=0.9) +
+  # geom_smooth(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), method="loess", se=T, span=0.65) +  # Adding the smooth line (using loess method)
+  scale_color_manual(values=LC_color_palette, name = "Land Cover") +
+  scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
+  theme_bw() +
+  theme(legend.position = "bottom")
+
 # Figure C----
 # Plot Partial Effects through Time
 

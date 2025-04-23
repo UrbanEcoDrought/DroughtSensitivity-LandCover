@@ -101,6 +101,7 @@ modOutListAdd2 <- list()
 modOutListAdd3 <- list()
 modOutListInt1 <- list()
 modOutListInt2 <- list()
+
 for(LC in LCtypes){
   print(LC)
   # Subset the data to a single land cover type
@@ -140,30 +141,30 @@ for(LC in LCtypes){
   # int1: 30d SPEI x 30d TMAX (#1)
   # int2: 30d SPEI x 14d TMAX (#2)
   
-  mod.outAdd1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI14", TempVar="Tmax_14day", Rsq=NA, RMSE=NA, 
+  mod.outAdd1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI14", TempVar="Tmax_14day", Error = NA,Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
                             pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
-  mod.outAdd2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_30day",  Rsq=NA, RMSE=NA, 
+  mod.outAdd2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_30day", Error = NA, Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
                             pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
-  mod.outAdd3 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPI30day", TempVar="Tmax_30day",  Rsq=NA, RMSE=NA, 
+  mod.outAdd3 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPI30day", TempVar="Tmax_30day", Error = NA, Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
                             pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA) 
   
   
-  mod.outInt1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_30day", Rsq=NA, RMSE=NA, 
+  mod.outInt1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_30day", Error = NA, Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, coef.TxD=NA, coef.LagxD=NA, coef.LagxT=NA, coef.DxTxLag=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , err.TxD=NA , err.LagxD=NA , err.LagxT=NA , err.DxTxLag=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, tVal.TxD=NA, tVal.LagxD=NA, tVal.LagxT=NA, tVal.DxTxLag=NA, 
                             pVal.Int=NA, pVal.Lag=NA, pVal.Drought=NA, pVal.Temp=NA, pVal.TxD=NA, pVal.LagxD=NA, pVal.LagxT=NA, pVal.DxTxLag=NA) 
 
-  mod.outInt2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_14day",  Rsq=NA, RMSE=NA, 
+  mod.outInt2 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI30", TempVar="Tmax_14day", Error = NA,  Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, coef.TxD=NA, coef.LagxD=NA, coef.LagxT=NA, coef.DxTxLag=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , err.TxD=NA , err.LagxD=NA , err.LagxT=NA , err.DxTxLag=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, tVal.TxD=NA, tVal.LagxD=NA, tVal.LagxT=NA, tVal.DxTxLag=NA, 
@@ -201,6 +202,8 @@ for(LC in LCtypes){
     modsListAdd1[[i]] <- modAdd1
     mod.outAdd1$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd1)[2]
     mod.outAdd1$RMSE[i] <- sqrt(mean(resid(modAdd1)^2))
+    mod.outAdd1$Error[i] <- mean(resid(modAdd1))
+    
     
     mod.outAdd1[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd1$tTable[,"Value"]
     mod.outAdd1[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd1$tTable[,"Std.Error"]
@@ -212,6 +215,8 @@ for(LC in LCtypes){
     modsListAdd2[[i]] <- modAdd2
     mod.outAdd2$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd2)[2]
     mod.outAdd2$RMSE[i] <- sqrt(mean(resid(modAdd2)^2))
+    mod.outAdd2$Error[i] <- mean(resid(modAdd2))
+    
     
     mod.outAdd2[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd2$tTable[,"Value"]
     mod.outAdd2[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd2$tTable[,"Std.Error"]
@@ -223,6 +228,7 @@ for(LC in LCtypes){
     modsListAdd3[[i]] <- modAdd3
     mod.outAdd3$Rsq[i] <- MuMIn::r.squaredGLMM(modAdd3)[2]
     mod.outAdd3$RMSE[i] <- sqrt(mean(resid(modAdd3)^2))
+    mod.outAdd3$Error[i] <- mean(resid(modAdd3))
     
     mod.outAdd3[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag")] <- sumAdd3$tTable[,"Value"]
     mod.outAdd3[i,c("err.Int", "err.Drought", "err.Temp", "err.Lag")] <- sumAdd3$tTable[,"Std.Error"]
@@ -234,6 +240,8 @@ for(LC in LCtypes){
     modsListInt1[[i]] <- modInt1
     mod.outInt1$Rsq[i] <- MuMIn::r.squaredGLMM(modInt1)[2]
     mod.outInt1$RMSE[i] <- sqrt(mean(resid(modInt1)^2))
+    mod.outInt1$Error[i] <- mean(resid(modInt1))
+    
     
     mod.outInt1[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag", "coef.TxD", "coef.LagxD", "coef.LagxT", "coef.DxTxLag")] <- sumInt1$tTable[,"Value"]
     mod.outInt1[i,c("err.Int" , "err.Drought" , "err.Temp" , "err.Lag" , "err.TxD" , "err.LagxD" , "err.LagxT" , "err.DxTxLag" )] <- sumInt1$tTable[,"Std.Error"]
@@ -246,6 +254,7 @@ for(LC in LCtypes){
     modsListInt2[[i]] <- modInt2
     mod.outInt2$Rsq[i] <- MuMIn::r.squaredGLMM(modInt2)[2]
     mod.outInt2$RMSE[i] <- sqrt(mean(resid(modInt2)^2))
+    mod.outInt2$Error[i] <- mean(resid(modInt2))
     
     mod.outInt2[i,c("coef.Int", "coef.Drought", "coef.Temp", "coef.Lag", "coef.TxD", "coef.LagxD", "coef.LagxT", "coef.DxTxLag")] <- sumInt2$tTable[,"Value"]
     mod.outInt2[i,c("err.Int" , "err.Drought" , "err.Temp" , "err.Lag" , "err.TxD" , "err.LagxD" , "err.LagxT" , "err.DxTxLag" )] <- sumInt2$tTable[,"Std.Error"]

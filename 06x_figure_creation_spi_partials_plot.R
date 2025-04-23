@@ -182,7 +182,7 @@ dev.off()
 ###############################
 # Loading in SPEI model----
 spei.pe <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")))
-
+head(spei.pe)
 # Figure C----
 # Plot Partial Effects through Time
 
@@ -289,32 +289,70 @@ dev.off()
 
 SPEImodel_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")))
 summary(SPEImodel_stats)
+
+SPEImodel_stats$modelForm <- paste(SPEImodel_stats$TempVar, SPEImodel_stats$DroughtVar, sep="-")
+
 SPImodel_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd3_Stats_climateNormPartialEffects_AllLandcovers.csv")))
 summary(SPImodel_stats)
 
-drought.err.comp <- ggplot() + facet_wrap(landcover~.) +
-  geom_line(data = SPEImodel_stats, aes(x=yday, y=err.Drought, col="SPEI_14day"), linewidth=0.75) +
-  geom_line(data = SPImodel_stats, aes(x=yday, y=err.Drought, col="SPI_30day"), linewidth=0.75) +
+SPImodel_stats$modelForm <- paste(SPImodel_stats$TempVar, SPImodel_stats$DroughtVar, sep="-")
+
+
+err.comp <- ggplot() + facet_grid(landcover~.) +
+  geom_line(data = SPEImodel_stats, aes(x=yday, y=Error, col="SPEI_14day"), linewidth=0.75) +
+  geom_line(data = SPImodel_stats, aes(x=yday, y=Error, col="SPI_30day"), linewidth=0.75) +
   geom_hline(yintercept=0, linetype="dashed") +
-  scale_color_manual(values = c("SPEI_14day" = "orchid4", "SPI_30day" = "forestgreen" ))
+  scale_color_manual(values = c("SPEI_14day" = "orchid4", "SPI_30day" = "forestgreen" )) +
   theme_bw()+
   #scale_y_continuous(limits=c(0,0.135)) +
   # coord_cartesian(ylim=c(0,2)) +
   scale_x_continuous(expand=c(0,0),
                      breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
-                     labels = unique(partial.dat.stack$month.name)
+                     labels = unique(partial.dat.stack$month.name))
+
+
+model.diff <- SPEImodel_stats[,c("yday", "landcover")]
+
+for(i in unique(SPEImodel_stats$landcover)){
+  for(j in unique(SPEImodel_stats$yday)){
+    temp.spei <- SPEImodel_stats[SPEImodel_stats$landcover==i & SPEImodel_stats$yday==j,]
+    temp.spi <- SPImodel_stats[SPImodel_stats$landcover==i & SPImodel_stats$yday==j,]
+    
+    model.diff[model.diff$landcover==i & model.diff$yday==j, "errorDiff"] <- temp.spei$Error - temp.spi$Error
+    model.diff[model.diff$landcover==i & model.diff$yday==j, "errorCol"] <- ifelse((temp.spei$Error - temp.spi$Error) > 0, "SPEI", "SPI")
+  }
+}
+
+err.diff<- ggplot(data = model.diff) + 
+  facet_grid(landcover ~ .) +
+  
+  # Use a rect to span entire y-axis with color cues for errorCol
+  geom_rect(
+    aes(xmin = yday - 0.5, xmax = yday + 0.5,
+        ymin = -Inf, ymax = Inf, fill = errorCol),
+    alpha = 0.75
+  ) +
+  
+  # Now your errorDiff line will always show clearly
+  geom_line(aes(x = yday, y = errorDiff), linewidth = 0.75, color = "black") +
+  
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  
+  scale_fill_manual(values = c("SPEI" = "orchid4", "SPI" = "forestgreen"), name="Larger Error") +
+  
+  theme_bw() +
+  
+  scale_x_continuous(
+    expand = c(0, 0),
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335),
+    labels = unique(partial.dat.stack$month.name)
   )
 
-  
-  temp.err.comp <- ggplot() + facet_wrap(landcover~.) +
-    geom_line(data = SPEImodel_stats, aes(x=yday, y=err.Temp, col="SPEI_14day"), linewidth=0.75) +
-    geom_line(data = SPImodel_stats, aes(x=yday, y=err.Temp, col="SPI_30day"), linewidth=0.75) +
-    geom_hline(yintercept=0, linetype="dashed") +
-    scale_color_manual(values = c("SPEI_14day" = "orchid4", "SPI_30day" = "forestgreen" ))
-  theme_bw()+
-    #scale_y_continuous(limits=c(0,0.135)) +
-    # coord_cartesian(ylim=c(0,2)) +
-    scale_x_continuous(expand=c(0,0),
-                       breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
-                       labels = unique(partial.dat.stack$month.name)
-    )
+
+png(filename=file.path(path.figs,"ADD1_vs_Add3_Error_Comparison.png"), height=10, width=10, units="in", res=220)
+print(err.comp)
+dev.off()
+
+png(filename=file.path(path.figs,"ADD1_vs_Add3_errorDifferenceComparison.png"), height=10, width=10, units="in", res=220)
+print(err.diff)
+dev.off()

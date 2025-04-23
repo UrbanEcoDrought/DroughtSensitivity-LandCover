@@ -74,8 +74,8 @@ dfModComb$modName <- apply(dfModComb, 1, FUN=function(x){paste(x, collapse="-")}
 modNames <- dfModComb$modName
 length(modNames); length(unique(modNames))
 
-listAIC <- listRMSE <- listR2 <- list()
-listAICd <- listRMSEd <- listR2d <- list()
+listAIC <- listError <- listRMSE <- listR2 <- list()
+listAICd <- listError <- listRMSEd <- listR2d <- list()
 
 for(LC in LCtypes){
   print(LC)
@@ -112,8 +112,8 @@ for(LC in LCtypes){
   
   # Right now we only care about the model sumary stats
   # For R2, we'll use the marginal R2 --> the part described by the fixed effects
-  modOutAIC <- modOutR2 <- modOutRMSE <- data.frame(landcover=LC, yday=1:365)
-  modOutAIC[, c("modLag", modNames)] <- modOutR2[, c("modLag", modNames)] <- modOutRMSE[, c("modLag", modNames)] <- NA
+  modOutAIC <- modOutError <-  modOutR2 <- modOutRMSE <- data.frame(landcover=LC, yday=1:365)
+  modOutAIC[, c("modLag", modNames)] <- modOutError[, c("modLag", modNames)] <- modOutR2[, c("modLag", modNames)] <- modOutRMSE[, c("modLag", modNames)] <- NA
   # mod.out <- data.frame(landcover=LC, yday=1:365, intercept=NA, coef.Lag=NA, coef.SPEI30=NA, coef
   
   
@@ -142,6 +142,7 @@ for(LC in LCtypes){
     modOutAIC$modLag[i] <- AIC(modL)
     modOutR2$modLag[i] <- MuMIn::r.squaredGLMM(modL)[2]
     modOutRMSE$modLag[i] <- sqrt(mean(resid(modL)^2))
+    modOutError$modLag[i] <- mean(resid(modL))
     
     for(VAR1 in varsDrought){
       for(VAR2 in varsTemp){
@@ -154,12 +155,14 @@ for(LC in LCtypes){
         modOutAIC[i, paste(VAR1, VAR2, "additive", sep="-")] <- AIC(modAdd)
         modOutR2[i,  paste(VAR1, VAR2, "additive", sep="-")] <- MuMIn::r.squaredGLMM(modAdd)[2]
         modOutRMSE[i,  paste(VAR1, VAR2, "additive", sep="-")] <- sqrt(mean(resid(modAdd)^2))
+        modOutError[i,  paste(VAR1, VAR2, "additive", sep="-")] <- mean(resid(modAdd))
         
         modInt <-  nlme::lme(NDVI ~ VAR1*VAR2*NDVI.Lag14d, random=list(mission=~1), data=dat.tmp[,], na.action=na.omit)
         summary(modInt)
         modOutAIC[i, paste(VAR1, VAR2, "interaction", sep="-")] <- AIC(modInt)
         modOutR2[i,  paste(VAR1, VAR2, "interaction", sep="-")] <- MuMIn::r.squaredGLMM(modInt)[2]
         modOutRMSE[i,  paste(VAR1, VAR2, "interaction", sep="-")] <- sqrt(mean(resid(modInt)^2))
+        modOutError[i,  paste(VAR1, VAR2, "interaction", sep="-")] <- mean(resid(modInt))
         
       }
     }
@@ -175,6 +178,7 @@ for(LC in LCtypes){
   write.csv(modOutAIC, file.path(pathSave, paste0("DailyModel_MultiVarSelection_AIC_", LC, ".csv")), row.names=F)
   write.csv(modOutR2, file.path(pathSave, paste0("DailyModel_MultiVarSelection_R2c_", LC, ".csv")), row.names=F)
   write.csv(modOutRMSE, file.path(pathSave, paste0("DailyModel_MultiVarSelection_RMSE_", LC, ".csv")), row.names=F)
+  write.csv(modOutError, file.path(pathSave, paste0("DailyModel_MultiVarSelection_Error_", LC, ".csv")), row.names=F)
   
   # saving local copies
   # write.csv(modOutAIC, file.path(google.drive, "data/processed_files", paste0("DailyModel_MultiVarSelection_AIC_", LC, ".csv")), row.names=F)
@@ -184,6 +188,7 @@ for(LC in LCtypes){
   listAIC[[LC]] <- modOutAIC
   listRMSE[[LC]] <- modOutRMSE
   listR2[[LC]] <- modOutR2
+  listError[[LC]] <- modOutError
   
   # Calculating dAIC
   dAIC <- modOutAIC
@@ -279,10 +284,12 @@ for(LC in LCtypes){
 AICall <- dplyr::bind_rows(listAIC)
 RMSEall <- dplyr::bind_rows(listRMSE)
 R2all <- dplyr::bind_rows(listR2)
+Errorall <- dplyr::bind_rows(listError)
 
 dAICall <- dplyr::bind_rows(listAICd)
 dRMSEall <- dplyr::bind_rows(listRMSEd)
 dR2all <- dplyr::bind_rows(listR2d)
+
 
 summary(R2all)
 head(R2all[,grep("additive", names(R2all))])
@@ -320,6 +327,7 @@ modStatsAll$dRMSE <- stack(dRMSEall[,c("modLag", modNames)])[,"values"]
 modStatsAll$dRMSEper <- stack(dRMSEperc[,c("modLag", modNames)])[,"values"]
 modStatsAll$R2 <- stack(R2all[,c("modLag", modNames)])[,"values"]
 modStatsAll$dR2 <- stack(dR2all[,c("modLag", modNames)])[,"values"]
+modStatsAll$Error <- stack(Errorall[,c("modLag", modNames)])[,"values"]
 modStatsAll$DroughtVar <- unlist(lapply(strsplit(as.character(modStatsAll$model), "-"), FUN=function(x){x[1]}))
 modStatsAll$TempVar <- unlist(lapply(strsplit(as.character(modStatsAll$model), "-"), FUN=function(x){x[2]}))
 modStatsAll$modelType <- unlist(lapply(strsplit(as.character(modStatsAll$model), "-"), FUN=function(x){x[3]}))
