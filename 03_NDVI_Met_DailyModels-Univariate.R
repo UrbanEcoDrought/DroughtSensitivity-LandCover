@@ -56,6 +56,8 @@ ggplot(data=ndvi.all) + facet_grid(landcover~.) +
 ndvi.all <- ndvi.all[ndvi.all$date <= as.Date("2024-12-31"),]
 summary(ndvi.all)
 
+# saving this for plotting later
+saveRDS(ndvi.all, file=file.path(google.drive, "data/processed_files", "landcover_ndviAll.RDS"))
 
 # reading in Trent's SPI
 # 03/26/2025 updated to new met data from trent housed here: https://drive.google.com/drive/folders/1xyvKEy72cy1n3Z5R1D5E9f1vXApUFIiI
@@ -124,7 +126,8 @@ chiMet.yday <- unique(chiMet$yday)
 
 chiMet.yday.check <- setdiff(yday.comp, chiMet.yday) # all yday present
 ndvi.yday.check <- setdiff(yday.comp, ndviAll.yday) 
-missing.ndvi <- setdiff(chiMet.yday, ndviAll.yday)
+missing.ndvi <- setdiff(chiMet.yday, ndviAll.yday) # zero is good
+
 # # # ## # # ## # # ## # # ## # # ## # # ## # # ## # # #
 # Merging met data and ndvi data together
 ndviMet <- merge(ndvi.all, chiMet, all.x=T, all.y=F, by=c("date", "yday"))

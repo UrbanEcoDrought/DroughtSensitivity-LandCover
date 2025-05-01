@@ -51,6 +51,12 @@ aggLC2$rank.avg <- apply(aggLC2[,c("dR2.rank", "dRMSE.rank")], 1, mean)
 aggLC2$RankComb[order(aggLC2$rank.avg, decreasing=F)] <- 1:nrow(aggLC2)
 aggLC2
 
+# saving table for use in the paper
+agglc2.save <- aggLC2[order(aggLC2$RankComb, decreasing = F),]
+head(agglc2.save)
+
+write.csv(agglc2.save, file.path(google.drive, "data/processed_files", "univariate_table.csv"), row.names=F)
+
 mean(aggLC2$RankComb[grep("Tmax", aggLC2$model)])
 mean(aggLC2$RankComb[grep("Tmin", aggLC2$model)])
 mean(aggLC2$RankComb[grep("SPEI", aggLC2$model)])

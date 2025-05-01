@@ -73,7 +73,9 @@ aggAdd2[grep("SPEI", aggAdd2$DroughtVar),]
 mean(aggAdd2$RankComb[grep("SPI", aggAdd2$DroughtVar)])
 mean(aggAdd2$RankComb[grep("SPEI", aggAdd2$DroughtVar)])
 
-
+# saving additive model table
+aggAdd.save <- aggAdd2[order(aggAdd2$RankComb, decreasing=F),]
+write.csv(aggAdd.save,file.path(google.drive, "data/processed_files", "multivarAdditive_table.csv"), row.names=F)
 
 aggXn2[grep("SPI", aggXn2$DroughtVar),]
 aggXn2[grep("SPEI", aggXn2$DroughtVar),]

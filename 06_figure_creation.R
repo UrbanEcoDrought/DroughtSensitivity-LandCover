@@ -22,6 +22,41 @@ pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
 
 daily.pe <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv")))
 
+# # # # # # # # # # # # # # # # # # # # 
+# setting a theme
+theme_pub <- function(base_size = 11, base_family = "sans") {
+  theme_minimal(base_size = base_size, base_family = base_family) +
+    theme(
+      # Axis
+      axis.title = element_text(size = base_size, face = "bold"),
+      axis.text = element_text(size = base_size - 1),
+      axis.line = element_line(color = "black"),
+      axis.ticks = element_line(color = "black"),
+      # Panel and Grid
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_blank(),
+      # Plot
+      plot.title = element_text(size = base_size + 2, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = base_size, hjust = 0.5),
+      plot.caption = element_text(size = base_size - 2, hjust = 1),
+      # Legend
+      legend.title = element_text(size = base_size, face = "bold"),
+      legend.text = element_text(size = base_size - 1),
+      legend.key = element_blank(),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.box = "horizontal",
+      legend.box.just = "center",
+      # Force one row
+      legend.spacing.x = unit(0.4, "cm"),
+      # Strip (facet labels)
+      strip.text = element_text(size = base_size, face = "bold"),
+      strip.background = element_rect(fill = "gray90", color = NA)
+    )
+}
+
+
 # reading in data----
 # starting with the output file created in script 05_NDVI_MET_DilyModels-Final.R
 
@@ -68,7 +103,7 @@ significant_stats_long$t_stat_category <- cut(
 significant_stats_long$Date <- as.Date(significant_stats_long$yday - 1, origin = "2000-01-01")
 
 significant_stats_long$Variable <- factor(significant_stats_long$Variable, levels = c("tVal_Lag", "tVal_Drought", "tVal_Temp"))
-significant_stats_long$in.gs <- ifelse(significant_stats_long$yday >=60 & significant_stats_long$yday <=304, "Yes", "No")
+significant_stats_long$in.gs <- ifelse(significant_stats_long$yday >=91 & significant_stats_long$yday <=304, "Yes", "No")
 
 significant_stats_long$LandCoverType <- factor(significant_stats_long$LandCoverType, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
@@ -81,11 +116,13 @@ figA <- ggplot(data = significant_stats_long) +
                                "mid.neg" = "#e7d4e8", 
                                "mid.pos" = "#d9f0d3", 
                                "Positive" = "#7fbf7b", 
-                               "Very Positive" = "#1b7837")) +
+                               "Very Positive" = "#1b7837"), name="t-Stat Category") +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
+  guides(fill = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
   labs(fill = "t-stat Value") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme_pub()
+  
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 png(filename=file.path(path.figs,"figA.png"), height=6, width=10, units="in", res=220)
 print(figA)
@@ -108,14 +145,14 @@ rmse_fig_dat$Date <- as.Date(rmse_fig_dat$yday - 1, origin = "2000-01-01")
 summary(rmse_fig_dat)
 rmse_fig_dat$landcover <- factor(rmse_fig_dat$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
-figB<- ggplot(data=rmse_fig_dat) + facet_wrap(landcover~., scales="free") +
+figB<- ggplot(data=rmse_fig_dat) + #facet_wrap(landcover~., scales="free") +
   geom_vline(xintercept = c(as.Date("2000-03-01"), as.Date("2000-10-31")), linetype="dashed") +
   geom_line(aes(x=Date, y=RMSE/NDVI.norm, col=landcover), linewidth=0.9) +
   # geom_smooth(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), method="loess", se=T, span=0.65) +  # Adding the smooth line (using loess method)
   scale_color_manual(values=LC_color_palette, name="Land Cover") +
   scale_x_date(labels = scales::date_format("%b"), breaks = "1 month") + # Format x-axis with months
-  theme_bw() +
-  theme(legend.position = "bottom")
+  theme_pub()
+
 
 png(filename=file.path(path.figs,"figB.png"), height=6, width=10, units="in", res=220)
 print(figB)
@@ -164,7 +201,7 @@ figC1 <- ggplot(partial.dat.stack[partial.dat.stack$var %in% pe.vars,]) + facet_
   scale_x_date(expand = c(0,0),breaks = seq(min(partial.dat.stack$date), max(partial.dat.stack$date), by = "24 months"), 
                labels = scales::date_format("%Y")) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "All Years")+
-  theme_bw()
+  theme_pub()
 
 figC2 <- ggplot(partial.dat.stack[partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(landcover~.)+
   geom_hline(yintercept=0, linetype="dashed") +
@@ -175,7 +212,7 @@ figC2 <- ggplot(partial.dat.stack[partial.dat.stack$var %in% c("partial.Temp.dat
   scale_x_date(expand = c(0,0),breaks = seq(min(partial.dat.stack$date), max(partial.dat.stack$date), by = "24 months"), 
                labels = scales::date_format("%Y")) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "All Years")+
-  theme_bw()
+  theme_pub()
 
 png(filename=file.path(path.figs,"figC1.png"), height=6, width=10, units="in", res=220)
 print(figC1)
@@ -197,7 +234,7 @@ figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) 
     labels = month.abb
   ) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
-  theme_bw()+
+  theme_pub() +
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
@@ -212,7 +249,7 @@ figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012)
     labels = month.abb
   ) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
-  theme_bw()+
+  theme_pub() +
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
@@ -227,14 +264,21 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
     labels = month.abb
   ) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
-  theme_bw()+
+  theme_pub
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Scaled PE
-figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$month %in% c(4:10),]) + facet_grid(year~landcover)+
+  partial.dat.stack$in.gs <- ifelse(partial.dat.stack$yday >=91 & partial.dat.stack$yday <=304, "Yes", "No")
+  
+
+  figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
+  geom_vline(xintercept = c(91, 305), linetype="dotted") +
   geom_hline(yintercept=0, linetype="dashed") +
-  geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  scale_alpha_manual(values = c("No" = 0.50, "Yes" = 1), guide = "none") +  # Dim non-growing season
   scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
                                 "peDroughtStd.gsMean" = "#0072B2", 
                                 "partial.Lag.date" = "#009E73")) +
@@ -244,7 +288,7 @@ figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012)
   ) +
   scale_y_continuous(labels = scales::label_percent()) +
   labs(x = "Month", y="PE as % Mean GS NDVI", title = "Stdandardized Partial Effects GS MEAN\nGROWING SEASON ONLY 2005, 2011,2012")+
-  theme_bw()+
+  theme_pub()+
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
@@ -260,7 +304,7 @@ png(filename=file.path(path.figs,"figC3c.png"), height=8, width=10, units="in", 
 print(figC3c)
 dev.off()
 
-png(filename=file.path(path.figs,"figC4.png"), height=8, width=10, units="in", res=220)
+png(filename=file.path(path.figs,"figC4.png"), height=8, width=15, units="in", res=300)
 print(figC4)
 dev.off()
 
@@ -282,4 +326,49 @@ figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,20
 
 png(filename=file.path(path.figs,"figC_ndvi_check.png"), height=8, width=10, units="in", res=220)
 print(figC_ndvi)
+dev.off()
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# LandSat NDVI coverage figure
+
+# want to make a plot with x = date, y = mission
+# have different colored bars for the coverage of landSAT data
+# have bars filled by the data coverage
+
+# may also just show histogram with monthly breaks
+ndvi.all <- readRDS(file=file.path(google.drive, "data/processed_files", "landcover_ndviAll.RDS"))
+
+
+ggplot(data=ndvi.all) +
+  geom_density(aes(x=date, y=..scaled..,col=mission))
+
+##################
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+# Step 1: Bin dates (monthly here, but adjust as needed)
+ndvi.binned <- ndvi.all %>%
+  filter(!is.na(NDVI)) %>%
+  mutate(
+    date_bin = floor_date(date, unit = "month")
+  ) %>%
+  group_by(mission, date_bin) %>%
+  summarize(n_obs = n(), .groups = "drop")
+
+# Step 2: Normalize observation counts per mission
+ndvi.binned <- ndvi.binned %>%
+  group_by(mission) %>%
+  mutate(density_scaled = n_obs / max(n_obs)) %>%
+  ungroup()
+
+# Step 3: Plot heat strips using geom_tile()
+mapFigDens <- ggplot(ndvi.binned, aes(x = date_bin, y = mission, fill = density_scaled)) +
+  geom_tile(color = NA, height = 0.8) +
+  scale_fill_viridis_c(name = "Scaled Obs Density", option = "viridis") +
+  labs(x = "Date", y = "Landsat Mission") +
+  theme_pub()
+
+png(filename=file.path(path.figs,"fig1_satellite_density.png"), height=8, width=10, units="in", res=220)
+print(mapFigDens)
 dev.off()
