@@ -343,9 +343,12 @@ ggplot(data=ndvi.all) +
   geom_density(aes(x=date, y=..scaled..,col=mission))
 
 ##################
+# Satellite density plots----
 library(dplyr)
 library(ggplot2)
 library(lubridate)
+
+ndvi.all <- readRDS(file.path(google.drive, "data/processed_files", "landcover_ndviAll.RDS"))
 
 # Step 1: Bin dates (monthly here, but adjust as needed)
 ndvi.binned <- ndvi.all %>%
@@ -363,7 +366,7 @@ ndvi.binned <- ndvi.binned %>%
   ungroup()
 
 # Step 3: Plot heat strips using geom_tile()
-mapFigDens <- ggplot(ndvi.binned, aes(x = date_bin, y = mission, fill = density_scaled)) +
+mapFigDens <- ggplot(ndvi.binned, aes(x = date_bin, y = stringr::str_to_title(mission), fill = density_scaled)) +
   geom_tile(color = NA, height = 0.8) +
   scale_fill_viridis_c(name = "Scaled Obs Density", option = "viridis") +
   labs(x = "Date", y = "Landsat Mission") +
@@ -371,4 +374,42 @@ mapFigDens <- ggplot(ndvi.binned, aes(x = date_bin, y = mission, fill = density_
 
 png(filename=file.path(path.figs,"fig1_satellite_density.png"), height=8, width=10, units="in", res=220)
 print(mapFigDens)
+dev.off()
+
+
+# ## # # # # # # # # # # # # # # # 
+# Satellite count plots----
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+
+ndvi.all <- readRDS(file.path(google.drive, "data/processed_files", "landcover_ndviAll.RDS"))
+
+# Step 1: Deduplicate based only on mission and date
+ndvi.unique <- ndvi.all %>%
+  filter(!is.na(NDVI)) %>%
+  select(mission, date) %>%
+  distinct()  # Now truly one row per unique image acquisition
+
+ndvi.unique <- ndvi.unique[order(ndvi.unique$date, decreasing = F),]
+
+# Step 2: Bin dates and count
+ndvi.binned <- ndvi.unique %>%
+  mutate(date_bin = floor_date(date, unit = "month")) %>%
+  group_by(mission, date_bin) %>%
+  summarize(n_obs = n(), .groups = "drop") %>%
+  mutate(mission = str_to_title(mission))  # Optional: title case
+
+# Step 3: Plot using counts
+mapFigCount <- ggplot(ndvi.binned, aes(x = date_bin, y = stringr::str_to_title(mission), fill = n_obs)) +
+  geom_tile(color = NA, height = 0.8) +
+  scale_fill_viridis_c(name = "Observation Count", option = "viridis") +
+  labs(x = "Date", y = "Landsat Mission") +
+  theme_pub()
+
+
+
+png(filename=file.path(path.figs,"fig1_satellite_count.png"), height=8, width=10, units="in", res=220)
+print(mapFigCount)
 dev.off()
