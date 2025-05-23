@@ -183,7 +183,10 @@ summary(metCor)
 # creating corr plot of met variable analysis
 png(file.path(path.figs, paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
 # png(file.path("figures", paste0("MetVar_CorrPlot.png")), height=8, width=8, units="in", res=320)
-ggcorrplot(metCor, type="lower", lab=T)
+ggcorrplot(metCor,
+           type = "lower",
+           lab = TRUE,
+           colors = c("#7b3294", "#f7f7f7", "#008837"))  # Purple - White - Green
 dev.off()
 
 
