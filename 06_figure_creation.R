@@ -146,7 +146,7 @@ summary(rmse_fig_dat)
 rmse_fig_dat$landcover <- factor(rmse_fig_dat$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
 figB<- ggplot(data=rmse_fig_dat) + #facet_wrap(landcover~., scales="free") +
-  geom_vline(xintercept = c(as.Date("2000-03-01"), as.Date("2000-10-31")), linetype="dashed") +
+  geom_vline(xintercept = c(as.Date("2000-04-01"), as.Date("2000-10-31")), linetype="dashed") +
   geom_line(aes(x=Date, y=RMSE/NDVI.norm, col=landcover), linewidth=0.9) +
   # geom_smooth(aes(x=Date, y=RMSE/NDVI.mean, col=landcover), method="loess", se=T, span=0.65) +  # Adding the smooth line (using loess method)
   scale_color_manual(values=LC_color_palette, name="Land Cover") +
@@ -168,6 +168,28 @@ figB2 <- ggplot(data=rmse_fig_dat) + facet_grid(landcover~.) +
   theme_bw() +
   theme(legend.position = "bottom")
 
+
+# Figure B Numeric Results
+summary(rmse_fig_dat)
+
+before.dates <- rmse_fig_dat$Date[rmse_fig_dat$Date< as.Date("2000-04-01")]
+after.dates <- rmse_fig_dat$Date[rmse_fig_dat$Date> as.Date("2000-11-01")]
+during.dates <- rmse_fig_dat$Date[!rmse_fig_dat$Date %in% before.dates & !rmse_fig_dat$Date %in% after.dates]
+
+
+head(rmse_fig_dat)
+
+rmse_fig_dat$norm.scaled.RMSE <- rmse_fig_dat$RMSE/rmse_fig_dat$NDVI.norm
+
+before.err <- aggregate(norm.scaled.RMSE~landcover, data=rmse_fig_dat[rmse_fig_dat$Date %in% before.dates,], FUN = range)
+before.err$diff <- before.err$norm.scaled.RMSE[,2] - before.err$norm.scaled.RMSE[,1]
+
+after.err <- aggregate(norm.scaled.RMSE~landcover, data=rmse_fig_dat[rmse_fig_dat$Date %in% after.dates,], FUN = range)
+after.err$diff <- after.err$norm.scaled.RMSE[,2] - after.err$norm.scaled.RMSE[,1]
+
+during.err <- aggregate(norm.scaled.RMSE~landcover, data=rmse_fig_dat[rmse_fig_dat$Date %in% during.dates,], FUN = range)
+during.err$diff <- during.err$norm.scaled.RMSE[,2] - during.err$norm.scaled.RMSE[,1]
+during.err[order(during.err$diff),]
 # Figure C----
 # Plot Partial Effects through Time
 
@@ -264,7 +286,7 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
     labels = month.abb
   ) +
   labs(x = "Month", y="Partial Effect to NDVI", title = "Raw Partial Effects 2005, 2011,2012")+
-  theme_pub
+  theme_pub() +
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
@@ -292,7 +314,47 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
+figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
+  geom_vline(xintercept = c(91, 305), linetype="dotted") +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  scale_alpha_manual(values = c("No" = 0.50, "Yes" = 1), guide = "none") +  # Dim non-growing season
+  scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
+                                "peDroughtStd.gsMean" = "#0072B2", 
+                                "partial.Lag.date" = "#009E73")) +
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(x = "Month", y="PE as % Mean GS NDVI", title = "Stdandardized Partial Effects GS MEAN\nGROWING SEASON ONLY 2005, 2011,2012")+
+  theme_pub()+
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
+figC4b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~var)+
+  geom_vline(xintercept = c(91, 305), linetype="dotted") +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  scale_alpha_manual(values = c("No" = 0.25, "Yes" = 1), guide = "none") +  # Dim non-growing season
+  # scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
+  #                               "peDroughtStd.gsMean" = "#0072B2", 
+  #                               "partial.Lag.date" = "#009E73")) +
+  
+  scale_color_manual(values = LC_color_palette)+
+  scale_x_continuous(
+    breaks = c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335), 
+    labels = month.abb
+  ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(x = "Month", y="PE as % Mean GS NDVI", title = "Stdandardized Partial Effects GS MEAN\nGROWING SEASON ONLY 2005, 2011,2012")+
+  theme_pub()+
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
 png(filename=file.path(path.figs,"figC3.png"), height=8, width=10, units="in", res=220)
 print(figC3)
@@ -308,7 +370,33 @@ png(filename=file.path(path.figs,"figC4.png"), height=8, width=15, units="in", r
 print(figC4)
 dev.off()
 
+#############
+# Partial effects numbers
+yoi <- c(2005, 2011, 2012, 2019)
 
+pe.data.use <- partial.dat.stack[partial.dat.stack$var %in% c("partial.Drought.date", "partial.Temp.date", "partial.Lag.date"),]
+
+before.dates <- pe.data.use$date[pe.data.use$month.name %in% c("Jan", "Feb", "Mar") & pe.data.use$year %in% yoi]
+after.dates <- pe.data.use$date[pe.data.use$month.name %in% c("Nov", "Dec")& pe.data.use$year %in% yoi]
+during.dates <- pe.data.use$date[!pe.data.use$date %in% before.dates & !pe.data.use$date %in% after.dates& pe.data.use$year %in% yoi]
+
+
+before.stats <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% before.dates,], FUN=min)
+names(before.stats) <- c("var", "landcover", "year", "pe.min")
+before.stats$pe.max <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% before.dates,], FUN=max)$values
+before.stats$pe.sd <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% before.dates,], FUN=sd)$values
+
+after.stats <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% after.dates,], FUN=min)
+names(after.stats) <- c("var", "landcover", "year", "pe.min")
+after.stats$pe.max <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% after.dates,], FUN=max)$values
+after.stats$pe.sd <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% after.dates,], FUN=sd)$values
+
+during.stats <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% during.dates,], FUN=min)
+names(during.stats) <- c("var", "landcover", "year", "pe.min")
+during.stats$pe.max <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% during.dates,], FUN=max)$values
+during.stats$pe.sd <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% during.dates,], FUN=sd)$values
+
+# # # # # # # # # # # # # # 
 figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_tile(aes(x=yday, y=1, fill=values), linewidth=0.8) +

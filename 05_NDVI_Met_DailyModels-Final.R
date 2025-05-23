@@ -143,7 +143,7 @@ for(LC in LCtypes){
   # int1: 30d SPEI x 30d TMAX (#1)
   # int2: 30d SPEI x 14d TMAX (#2)
   
-  mod.outAdd1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI14", TempVar="Tmax_14day", Error = NA,Rsq=NA, RMSE=NA, 
+  mod.outAdd1 <- data.frame(landcover=LC, yday=1:365, DroughtVar="SPEI14", TempVar="Tmax_30day", Error = NA,Rsq=NA, RMSE=NA, 
                             coef.Int=NA, coef.Lag=NA, coef.Drought=NA, coef.Temp=NA, 
                             err.Int=NA , err.Lag=NA , err.Drought=NA , err.Temp=NA , 
                             tVal.Int=NA, tVal.Lag=NA, tVal.Drought=NA, tVal.Temp=NA, 
