@@ -447,3 +447,4 @@ dev.off()
 png(file.path(path.figs, paste0("NDVI-ModelSelection-Multivariate_AllLandcover_dR2-interactions.png")), height=9, width=10, units="in", res=320)
 plot.dR2Xn
 dev.off()
+

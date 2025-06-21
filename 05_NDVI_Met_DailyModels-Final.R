@@ -591,8 +591,9 @@ urbanHigh.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Sta
 urbanLow.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-low.csv")))
 urbanOpen.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-open.csv")))
 urbanMedium.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-medium.csv")))
+forestWet.add1 <- read.csv(file.path(pathSave,paste0("DailyModel_finalModel_stats_additive_SPEI14-TMAX30_forest-wet.csv")))
 
-modOutAll <- rbind(crop.add1, forest.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
+modOutAll <- rbind(crop.add1, forest.add1, forestWet.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
 modOutAll$modelType <- as.factor("additive")
 summary(modOutAll)                      
 

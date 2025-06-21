@@ -78,7 +78,7 @@ dev.off()
 
 # drought year comparison plots
 
-figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% pe.vars,]) + facet_grid(year~landcover)+
+figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% pe.vars,]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -93,7 +93,7 @@ figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) 
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
+figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -108,7 +108,7 @@ figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012)
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
+figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -124,7 +124,7 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Scaled PE
-figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$month %in% c(4:10),]) + facet_grid(year~landcover)+
+figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$month %in% c(4:10),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
@@ -159,7 +159,7 @@ print(figC4)
 dev.off()
 
 
-figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
+figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_tile(aes(x=yday, y=1, fill=values), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -205,8 +205,8 @@ spei.partial.dat.stack$month.name<- lubridate::month(spei.partial.dat.stack$date
 
 # Partial effects across multiple years
 pe.vars <- c("partial.Temp.date", "partial.Drought.date", "partial.Lag.date")
-partial.dat.stack$landcover <- factor(partial.dat.stack$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
-spei.partial.dat.stack$landcover <- factor(spei.partial.dat.stack$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+partial.dat.stack$landcover <- factor(partial.dat.stack$landcover, c("crop", "forest", "forest-wet", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+spei.partial.dat.stack$landcover <- factor(spei.partial.dat.stack$landcover, c("crop", "forest", "forest-wet", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
 
 
@@ -214,11 +214,11 @@ spei.partial.dat.stack$landcover <- factor(spei.partial.dat.stack$landcover, c("
 summary(spei.partial.dat.stack)
 summary(partial.dat.stack)
 
-partial.comp <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$month %in% c(4:10),]) + facet_grid(year*var~landcover)+
+partial.comp <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$month %in% c(4:10),]) + facet_grid(year*var~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values,col="SPEI_14day Model"), linewidth=0.8, ) +
   
-  geom_line(data=spei.partial.dat.stack[spei.partial.dat.stack$year %in% c(2005,2011, 2012) & spei.partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & spei.partial.dat.stack$month %in% c(4:10),],
+  geom_line(data=spei.partial.dat.stack[spei.partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & spei.partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & spei.partial.dat.stack$month %in% c(4:10),],
             aes(x=yday, y=values, col="SPI_30day Model"), linewidth=0.8) +
   scale_color_manual(values=c("SPEI_14day Model" = "orchid4", "SPI_30day Model"= "forestgreen")) +
   
@@ -247,7 +247,7 @@ unique(modStatsAll$model)
 model.list <- c("SPEI30-Tmax_14day-additive", "SPI30day-Tmax_30day-additive")
 
 mod13.stats <- modStatsAll[modStatsAll$model %in% model.list,]
-mod13.stats$landcover <- factor(mod13.stats$landcover, c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+mod13.stats$landcover <- factor(mod13.stats$landcover, c("crop", "forest","forest-wet", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 summary(mod13.stats)
 
 model_stats <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")))

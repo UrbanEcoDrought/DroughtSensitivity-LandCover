@@ -36,7 +36,7 @@ if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
 
 # ndvi.all <- readRDS(file.path(google.drive, "data/r_files/processed_files/landsat_ndvi_all.RDS"))
 
-ndvi.all <- read.csv("G:/Shared drives/Urban Ecological Drought/data/UrbanEcoDrought_NDVI_LocalExtract-RAW/NDVIall_latest.csv", header=T)
+ndvi.all <- read.csv("G:/Shared drives/Urban Ecological Drought/data/UrbanEcoDrought_NDVI_LocalExtract/NDVIall_latest.csv", header=T)
 
 head(ndvi.all)
 ndvi.all$mission <- as.factor(ndvi.all$mission)
