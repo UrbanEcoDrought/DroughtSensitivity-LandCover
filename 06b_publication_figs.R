@@ -67,6 +67,10 @@ growing_season_end <- 304    # October 31st
 theme_publication <- function(base_size = 11, base_family = "sans") {
   theme_minimal(base_size = base_size, base_family = base_family) +
     theme(
+      # Ensure white backgrounds
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      
       # Axis styling
       axis.title = element_text(size = base_size, face = "bold"),
       axis.text = element_text(size = base_size - 1),
@@ -87,6 +91,7 @@ theme_publication <- function(base_size = 11, base_family = "sans") {
       legend.title = element_text(size = base_size, face = "bold"),
       legend.text = element_text(size = base_size - 1),
       legend.key = element_blank(),
+      legend.background = element_rect(fill = "white", color = NA),
       legend.position = "bottom",
       legend.direction = "horizontal",
       legend.box = "horizontal",
@@ -273,7 +278,7 @@ ggsave(file.path(path.figs, "figure_b2_error_faceted.png"),
 cat("Figure B variants saved successfully.\n")
 
 # =============================================================================
-# FIGURE C: STANDARDIZED PARTIAL EFFECTS (C4 and C4b only)
+# FIGURE C: STANDARDIZED PARTIAL EFFECTS (C4 and C4b only)----
 # =============================================================================
 
 cat("Preparing Figure C data...\n")
@@ -458,11 +463,11 @@ figure_c_supplement <- ggplot(pe_supp) +
 
 # Save all Figure C variants
 ggsave(file.path(path.figs, "figure_c4_partial_effects_standardized.png"), 
-       figure_c4, height = 8, width = 15, units = "in", dpi = 300)
+       figure_c4, height = 10, width = 15, units = "in", dpi = 300)
 ggsave(file.path(path.figs, "figure_c4b_partial_effects_by_variable.png"), 
-       figure_c4b, height = 8, width = 15, units = "in", dpi = 300)
+       figure_c4b, height = 10, width = 15, units = "in", dpi = 300)
 ggsave(file.path(path.figs, "figure_c_supplement_with_lag.png"), 
-       figure_c_supplement, height = 8, width = 15, units = "in", dpi = 300)
+       figure_c_supplement, height = 10, width = 15, units = "in", dpi = 300)
 
 cat("Figure C variants saved successfully:\n")
 cat("- Main publication figures: C4 and C4b (Temperature and Drought only)\n")
