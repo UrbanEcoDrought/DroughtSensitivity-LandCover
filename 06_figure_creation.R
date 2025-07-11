@@ -168,6 +168,9 @@ figB2 <- ggplot(data=rmse_fig_dat) + facet_grid(landcover~.) +
   theme_bw() +
   theme(legend.position = "bottom")
 
+png(filename=file.path(path.figs,"figB2.png"), height=6, width=10, units="in", res=220)
+print(figB2)
+dev.off()
 
 # Figure B Numeric Results
 summary(rmse_fig_dat)
@@ -190,6 +193,8 @@ after.err$diff <- after.err$norm.scaled.RMSE[,2] - after.err$norm.scaled.RMSE[,1
 during.err <- aggregate(norm.scaled.RMSE~landcover, data=rmse_fig_dat[rmse_fig_dat$Date %in% during.dates,], FUN = range)
 during.err$diff <- during.err$norm.scaled.RMSE[,2] - during.err$norm.scaled.RMSE[,1]
 during.err[order(during.err$diff),]
+
+
 # Figure C----
 # Plot Partial Effects through Time
 
@@ -213,6 +218,8 @@ partial.dat.stack$month.name<- lubridate::month(partial.dat.stack$date, abb=T, l
 # Partial effects across multiple years
 pe.vars <- c("partial.Temp.date", "partial.Drought.date", "partial.Lag.date")
 partial.dat.stack$landcover <- factor(partial.dat.stack$landcover, c("crop", "forest", "forest-wet","grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+
+yoi <- c(2005, 2012, 2021, 2023)
 
 figC1 <- ggplot(partial.dat.stack[partial.dat.stack$var %in% pe.vars,]) + facet_grid(landcover~.)+
   geom_hline(yintercept=0, linetype="dashed") +
@@ -245,7 +252,7 @@ dev.off()
 
 # drought year comparison plots
 
-figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% pe.vars,]) + facet_grid(year~landcover)+
+figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% pe.vars,]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -260,7 +267,7 @@ figC3 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021,
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
+figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -275,7 +282,7 @@ figC3b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partial.dat.stack$year %in% c(2005,2011,2012) & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
+figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("partial.Temp.date", "partial.Drought.date"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_line(aes(x=yday, y=values, col=var), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 
@@ -294,12 +301,12 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
   partial.dat.stack$in.gs <- ifelse(partial.dat.stack$yday >=91 & partial.dat.stack$yday <=304, "Yes", "No")
   
 
-  figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
+  figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
   geom_vline(xintercept = c(91, 305), linetype="dotted") +
   geom_hline(yintercept=0, linetype="dashed") +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
   scale_alpha_manual(values = c("No" = 0.50, "Yes" = 1), guide = "none") +  # Dim non-growing season
   scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
                                 "peDroughtStd.gsMean" = "#0072B2", 
@@ -314,12 +321,12 @@ figC3c <- ggplot(partial.dat.stack[partial.dat.stack$month %in% c(4:10) & partia
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
+figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~landcover)+
   geom_vline(xintercept = c(91, 305), linetype="dotted") +
   geom_hline(yintercept=0, linetype="dashed") +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=var, alpha=in.gs), linewidth=0.8) +
   scale_alpha_manual(values = c("No" = 0.50, "Yes" = 1), guide = "none") +  # Dim non-growing season
   scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
                                 "peDroughtStd.gsMean" = "#0072B2", 
@@ -334,12 +341,12 @@ figC4 <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021,
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-figC4b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~var)+
+figC4b <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean"),]) + facet_grid(year~var)+
   geom_vline(xintercept = c(91, 305), linetype="dotted") +
   geom_hline(yintercept=0, linetype="dashed") +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
-  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% c(2005,2011, 2012) & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(1:90),],aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(61:304),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
+  geom_line(data = partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("peTempStd.gsMean", "peDroughtStd.gsMean") & partial.dat.stack$yday %in% c(305:365),], aes(x=yday, y=values, col=landcover, alpha=in.gs), linewidth=0.8) +
   scale_alpha_manual(values = c("No" = 0.25, "Yes" = 1), guide = "none") +  # Dim non-growing season
   # scale_color_manual(values = c("peTempStd.gsMean" = "#E69F00", 
   #                               "peDroughtStd.gsMean" = "#0072B2", 
@@ -368,6 +375,9 @@ dev.off()
 
 png(filename=file.path(path.figs,"figC4.png"), height=8, width=15, units="in", res=300)
 print(figC4)
+dev.off()
+png(filename=file.path(path.figs,"figC4b.png"), height=8, width=15, units="in", res=300)
+print(figC4b)
 dev.off()
 
 #############
@@ -398,7 +408,7 @@ during.stats$pe.max <- aggregate(values~var+landcover+year, data=pe.data.use[pe.
 during.stats$pe.sd <- aggregate(values~var+landcover+year, data=pe.data.use[pe.data.use$date %in% during.dates,], FUN=sd)$values
 
 # # # # # # # # # # # # # # 
-figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% c(2005,2012, 2021, 2023) & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
+figC_ndvi <- ggplot(partial.dat.stack[partial.dat.stack$year %in% yoi & partial.dat.stack$var %in% c("NDVI"),]) + facet_grid(year~landcover)+
   geom_hline(yintercept=0, linetype="dashed") +
   geom_tile(aes(x=yday, y=1, fill=values), linewidth=0.8) +
   scale_color_manual(values = c("partial.Temp.date" = "#E69F00", 

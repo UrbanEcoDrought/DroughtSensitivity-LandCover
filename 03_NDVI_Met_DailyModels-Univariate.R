@@ -45,6 +45,29 @@ ndvi.all$date <- as.Date(ndvi.all$date)
 ndvi.all$year <- lubridate::year(ndvi.all$date)
 ndvi.all$yday <- lubridate::yday(ndvi.all$date)
 summary(ndvi.all)
+length(unique(ndvi.all$landcover))
+
+# NOTE: Removing 'forest' and recoding 'forest-wet' to 'forest'
+# Tests indicated that no major differences in including woody wetlands in 'forest' land cover class. 
+# recoding here to carry through entire analysis
+
+ndvi.all <- ndvi.all[!ndvi.all$landcover %in% "forest",]
+unique(ndvi.all$landcover)
+length(unique(ndvi.all$landcover))
+
+# recoding forest-wet -> forest
+# Check current values
+table(ndvi.all$type)
+table(ndvi.all$landcover)
+# Replace the specific string
+ndvi.all$type <- gsub("forest-wet", "forest", ndvi.all$type)
+ndvi.all$landcover <- gsub("forest-wet", "forest", ndvi.all$type)
+
+# Verify the change  
+table(ndvi.all$type)
+table(ndvi.all$landcover)
+
+ndvi.all$landcover <- as.factor(ndvi.all$landcover)
 
 # quick plotting to see how the data look--combing all missions
 # at this stage we would expect some gaps
