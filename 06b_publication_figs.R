@@ -180,6 +180,8 @@ figure_a <- ggplot(data = tstat_long) +
   facet_grid(landcover ~ .) +
   geom_tile(aes(x = date_display, y = variable, fill = t_statistic, 
                 alpha = in_growing_season)) +
+  geom_vline(xintercept=as.Date("2000-04-01"), linetype="dotted") +
+  geom_vline(xintercept=as.Date("2000-11-01"), linetype="dotted") +
   scale_alpha_manual(values = c("FALSE" = 0.6, "TRUE" = 1.0), guide = "none") +
   scale_fill_gradient2(
     low = "#762a83", mid = "white", high = "#1b7837",
@@ -351,7 +353,7 @@ pe_supp <- partial_long_supp[partial_long_supp$year %in% years_of_interest &
 
 # Create Figure C4 - Standardized partial effects by land cover and year
 figure_c4 <- ggplot(pe_main) + 
-  facet_grid(landcover~year) +
+  facet_grid(landcover~year, scales="free_y") +
   geom_vline(xintercept = c(growing_season_start, growing_season_end), 
              linetype = "dotted", color = "gray50", alpha = 0.7) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 0.3) +
@@ -372,7 +374,7 @@ figure_c4 <- ggplot(pe_main) +
     labels = month.abb
   ) +
   scale_y_continuous(labels = scales::percent_format()) +
-  coord_cartesian(ylim=c(-.25,.15)) +
+  #coord_cartesian(ylim=c(-.25,.15)) +
   labs(
     # title = "Standardized Partial Effects as % of Mean Growing Season NDVI",
     # subtitle = paste("Drought years:", paste(years_of_interest, collapse = ", ")),
@@ -501,5 +503,81 @@ pe_summary <- aggregate(
 cat("\nPartial Effect Ranges Summary:\n")
 print(pe_summary[1:10, ])  # Show first 10 rows
 
+pe_summary[pe_summary$year %in% 2005,]
+pe_summary[pe_summary$year %in% 2012,]
+pe_summary[pe_summary$year %in% 2021,]
+pe_summary[pe_summary$year %in% 2023,]
+
+summary(pe_summary[pe_summary$landcover=="Crop" & pe_summary$variable_clean=="Temperature",])
+summary(pe_summary[pe_summary$landcover=="Crop" & pe_summary$variable_clean=="Drought",])
+
+summary(pe_summary[pe_summary$landcover=="Urban High" & pe_summary$variable_clean=="Temperature",])
+summary(pe_summary[pe_summary$landcover=="Urban High" & pe_summary$variable_clean=="Drought",])
+
 cat("\nAll figures generated successfully!\n")
 cat("Files saved to:", path.figs, "\n")
+
+####################
+# supplemental fig numbers to get the lag influence
+
+summary(pe_supp)
+pe_supp_summary <- aggregate(
+  partial_effect_std ~ variable_clean + landcover + year, 
+  data = pe_supp,
+  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
+                      range = diff(range(x, na.rm = TRUE)))
+)
+summary(pe_supp_summary[pe_supp_summary$variable_clean=="Lag",])
+
+###################################
+# other numbers of interest
+
+pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Univariate")
+univar <- read.csv(file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), header=T)
+
+crop.univar <- univar[univar$landcover=="crop",]
+forest.univar <- univar[univar$landcover=="forest",]
+grass.univar <- univar[univar$landcover=="grassland",]
+urbanOpen.univar <- univar[univar$landcover=="urban-open",]
+urbanLow.univar <- univar[univar$landcover=="urban-low",]
+urbanMed.univar <- univar[univar$landcover=="urban-medium",]
+urbanHigh.univar <- univar[univar$landcover=="urban-high",]
+
+summary(crop.univar)
+
+univar_summary <- aggregate(
+  dR2 ~ landcover, 
+  data = univar,
+  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
+                      range = diff(range(x, na.rm = TRUE)))
+)
+univar_summary
+
+####################
+# RMSE Numbers
+
+summary(rmse_data)
+class(rmse_data$date_display)
+rmse_data$month <- lubridate::month(rmse_data$date_display)
+
+rmse_summary <- aggregate(
+  RMSE ~ landcover + month, 
+  data = rmse_data,
+  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
+                      range = diff(range(x, na.rm = TRUE)))
+)
+
+rmse_summary[rmse_summary$month==2,]
+
+mean(rmse_data[rmse_data$month %in% c(1,2,3),"rmse_normalized"])
+sd(rmse_data[rmse_data$month %in% c(1,2,3),"rmse_normalized"])
+
+mean(rmse_data[rmse_data$month %in% c(11,12),"rmse_normalized"])
+sd(rmse_data[rmse_data$month %in% c(11,12),"rmse_normalized"])
+
+rmseNorm_summary_gs <- aggregate(
+  rmse_normalized ~ landcover, 
+  data = rmse_data[rmse_data$in_growing_season==TRUE,],
+  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
+                      range = diff(range(x, na.rm = TRUE)))
+)
