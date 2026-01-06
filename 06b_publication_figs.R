@@ -423,6 +423,63 @@ figure_c4b <- ggplot(pe_main) +
     legend.position = "bottom"
   )
 
+# Filtered to urban high and forest
+pe_filtered <- pe_main[pe_main$landcover %in% c("Forest", "Urban High"), ]
+
+figure_c4_filtered <- ggplot(pe_filtered) + 
+  facet_grid(landcover~year, scales="free_y") +
+  geom_vline(xintercept = c(growing_season_start, growing_season_end), 
+             linetype = "dotted", color = "gray50", alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.3) +
+  geom_line(data = pe_filtered[pe_filtered$yday <= 90, ],
+            aes(x = yday, y = partial_effect_std, color = variable_clean, alpha = in_growing_season), 
+            linewidth = 1.2) +
+  geom_line(data = pe_filtered[pe_filtered$yday >= 61 & pe_filtered$yday <= 304, ],
+            aes(x = yday, y = partial_effect_std, color = variable_clean, alpha = in_growing_season), 
+            linewidth = 1.2) +
+  geom_line(data = pe_filtered[pe_filtered$yday >= 305, ],
+            aes(x = yday, y = partial_effect_std, color = variable_clean, alpha = in_growing_season), 
+            linewidth = 1.2) +
+  scale_alpha_manual(values = c("FALSE" = 0.5, "TRUE" = 1.0), guide = "none") +
+  scale_color_manual(values = c("Temperature" = "#E69F00", "Drought" = "#0072B2"), 
+                     name = "Climate Variable") +
+  scale_x_continuous(
+    breaks = c(1, 60, 121, 182, 244, 305),
+    labels = c("Jan", "Mar", "May", "Jul", "Sep", "Nov")
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "Month",
+    y = "PE as % Mean GS NDVI"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    # Text elements - larger for readability
+    axis.title = element_text(size = 18, face = "bold"),
+    axis.text = element_text(size = 14),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),  # Horizontal labels now
+    
+    # Facet strips - larger and bold
+    strip.text = element_text(size = 16, face = "bold"),
+    strip.background = element_rect(fill = "grey90", color = NA),
+    
+    # Legend - larger
+    legend.position = "bottom",
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.text = element_text(size = 16),
+    legend.key.size = unit(2, "lines"),
+    
+    # Panel
+    panel.grid.major = element_line(color = "grey85", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    
+    # Overall margins
+    plot.margin = margin(10, 10, 10, 10)
+  )
+
+ggsave(file.path(path.figs, "figure_c4_partial_effects_standardized_filtered.png"), 
+       figure_c4_filtered, height = 10, width = 25, units = "in", dpi = 300, bg="white")
 # =============================================================================
 # SUPPLEMENTAL FIGURE (includes lag term)
 # =============================================================================
