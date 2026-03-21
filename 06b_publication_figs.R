@@ -1,7 +1,31 @@
-# Creating publication-quality figures for Urban Ecological Drought manuscript
-# Figure A: Significant t-statistic plot for different land cover types
-# Figure B: RMSE through time for different land cover types  
-# Figure C: Partial effects through time
+# 06b_publication_figs.R
+# ============================================================================
+# PURPOSE: Generate publication-quality figures for the manuscript
+#
+# Produces 3 of the 5 manuscript figures (Figures 1 & 2 are GIS-based maps):
+#   Figure 3 (A): t-statistic significance heatmap — shows WHEN and WHERE each
+#                 climate variable significantly predicts NDVI across land covers
+#   Figure 4 (B): Normalized RMSE through time — shows model prediction error
+#                 as a fraction of mean NDVI, revealing seasonal performance
+#   Figure 5 (C): Standardized partial effects — shows the magnitude and
+#                 direction of drought and temperature effects on NDVI,
+#                 expressed as % of mean growing season NDVI
+#
+# Also generates supplemental figures (C4b by-variable view, lag term figure,
+# and a filtered Forest vs Urban High comparison).
+#
+# INPUTS (from script 05 via Google Drive or local processed_data/):
+#   - modOutAdd1 Stats: per-DOY model coefficients, t-values, p-values, RMSE
+#   - modOutAdd1 dailyPartialEffects: per-date partial effects for each predictor
+#
+# All figures use the add1 model (SPEI 14-day + Tmax 30-day, additive).
+#
+# FIGURE DESIGN:
+#   - Land cover types ordered rural → urban (Crop to Urban High)
+#   - NLCD-inspired color palette for land cover classes
+#   - Growing season (DOY 91-304) highlighted; non-growing season dimmed
+#   - Drought years of interest: 2005, 2012, 2021, 2023
+# ============================================================================
 
 library(ggplot2)
 library(reshape2)
@@ -11,19 +35,31 @@ library(viridis)
 
 # Setting the file paths (keep this section intact for data sharing)
 # This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
-Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
+# Google Drive path: Urban Ecological Drought / Manuscript - Urban Drought NDVI Daily Corrs
+Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
+# Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
-path.NDVI <- file.path(google.drive, "data", "data_raw")
-path.figs <- file.path(google.drive, "pub_figs")
-pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
+# Model output path: reads from Google Drive if available, otherwise falls back to local processed_data/
+if (dir.exists(file.path(google.drive, "data/processed_files/FinalDailyModel"))) {
+  pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
+  cat("Reading data from Google Drive:", pathSave, "\n")
+} else {
+  pathSave <- "processed_data"
+  cat("Google Drive not found, reading from local processed_data/\n")
+}
 
-dir.create(path.figs, recursive = F)
+path.figs <- file.path(google.drive, "pub_figs")
+dir.create(path.figs, recursive = FALSE, showWarnings = FALSE)
+dir.create("figures", recursive = FALSE, showWarnings = FALSE)
 
 # =============================================================================
 # CONFIGURATION AND SETUP
 # =============================================================================
+# Central configuration for all figures. Land cover classes are ordered along
+# a rural-to-urban gradient, matching the manuscript's conceptual framework of
+# comparing natural vs. developed landscapes' drought sensitivity.
+# Colors are drawn from the NLCD palette for consistency with mapped figures.
 
 # Define land cover type mappings and standardized order (rural to urban)
 landcover_mapping <- c(
@@ -107,13 +143,24 @@ theme_publication <- function(base_size = 11, base_family = "sans") {
 # =============================================================================
 # DATA LOADING AND PREPARATION
 # =============================================================================
+# Two input files from the add1 final model (SPEI 14-day + Tmax 30-day):
+#
+# 1. climateNormPartialEffects: One row per DOY × land cover (365 × 7 = 2,555 rows).
+#    Contains: model fit stats (R², RMSE, AIC), fixed-effect coefficients,
+#    t-statistics and p-values for each predictor, and climate-normalized
+#    partial effects averaged across all years.
+#
+# 2. dailyPartialEffects: One row per actual observation date × land cover.
+#    Contains: year-specific partial effects (raw and standardized as % of
+#    mean growing season NDVI). Used for Figure 5 to show how drought and
+#    temperature effects vary across specific drought years.
 
-# Load model statistics
+# Load model statistics (per-DOY summary across all years)
 cat("Loading model statistics...\n")
 model_stats <- read.csv(file.path(pathSave, "DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv"))
 
-# Load daily partial effects
-cat("Loading daily partial effects...\n") 
+# Load daily partial effects (per-date, year-specific)
+cat("Loading daily partial effects...\n")
 daily_pe <- read.csv(file.path(pathSave, "DailyModel_FinalModel_modOutAdd1_Stats_dailyPartialEffects_AllLandcovers.csv"))
 
 # Convert date column from character to Date
@@ -135,15 +182,28 @@ add_date_info <- function(data, yday_col = "yday") {
 }
 
 # =============================================================================
-# FIGURE A: T-STATISTIC SIGNIFICANCE HEATMAP----
+# FIGURE A / FIGURE 3: T-STATISTIC SIGNIFICANCE HEATMAP
 # =============================================================================
+# Shows the t-statistic (effect size and direction) for each predictor variable
+# across the full year, faceted by land cover type. Non-significant relationships
+# (p > 0.05) are set to NA and rendered as grey, making it easy to see WHEN
+# each climate driver significantly influences NDVI.
+#
+# Key ecological insights this figure reveals:
+#   - Drought effects (SPEI) are strongest mid-summer across all land covers
+#   - Temperature effects peak in spring/fall transition periods
+#   - Lag (autocorrelation) is significant year-round, strongest in winter
+#   - Urban-high shows weaker/fewer significant climate-NDVI relationships
+#
+# Purple = negative t-stat (variable increase → NDVI decrease)
+# Green  = positive t-stat (variable increase → NDVI increase)
 
 cat("Preparing Figure A data...\n")
 
-# Create working copy and filter for significance
+# Create working copy and set non-significant t-statistics to NA
 model_stats_fig_a <- model_stats
 model_stats_fig_a$tVal.Lag[model_stats$pVal.Lag > 0.05] <- NA
-model_stats_fig_a$tVal.Drought[model_stats$pVal.Drought > 0.05] <- NA  
+model_stats_fig_a$tVal.Drought[model_stats$pVal.Drought > 0.05] <- NA
 model_stats_fig_a$tVal.Temp[model_stats$pVal.Temp > 0.05] <- NA
 
 # Reshape to long format for plotting
@@ -206,15 +266,26 @@ figure_a <- ggplot(data = tstat_long) +
   theme_publication() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Save Figure A
-ggsave(file.path(path.figs, "figure_a_tstat_significance.png"), 
+# Save Figure A (Figure 3 in manuscript)
+ggsave(file.path(path.figs, "figure_a_tstat_significance.png"),
+       figure_a, height = 8, width = 12, units = "in", dpi = 300)
+ggsave("figures/Figure_3_tstat_significance.png",
        figure_a, height = 8, width = 12, units = "in", dpi = 300)
 
-cat("Figure A saved successfully.\n")
+cat("Figure A (manuscript Figure 3) saved successfully.\n")
 
 # =============================================================================
-# FIGURE B: MODEL ERROR THROUGH TIME----
+# FIGURE B / FIGURE 4: MODEL ERROR THROUGH TIME
 # =============================================================================
+# Shows how well the model predicts NDVI across the year by plotting normalized
+# RMSE (RMSE / mean NDVI). Normalizing by mean NDVI accounts for the fact that
+# NDVI values and their variance are much lower in winter than summer.
+#
+# B1 (combined): All land covers on one plot — shows relative performance
+# B2 (faceted): Raw prediction error per land cover — shows bias patterns
+#
+# Key pattern: Model error is highest in winter (low NDVI, high relative error)
+# and lowest during the growing season when climate-NDVI relationships are strong.
 
 cat("Preparing Figure B data...\n")
 
@@ -223,7 +294,8 @@ rmse_data <- model_stats
 rmse_data <- add_date_info(rmse_data)
 rmse_data <- standardize_landcover(rmse_data)
 
-# Calculate normalized RMSE (RMSE divided by mean NDVI for each day of year and land cover)
+# Normalized RMSE: divides prediction error by the mean NDVI for that DOY
+# and land cover (NDVI.norm), putting error on a relative scale
 rmse_data$rmse_normalized <- rmse_data$RMSE / rmse_data$NDVI.norm
 
 # Create Figure B - All land covers on one plot
@@ -271,24 +343,46 @@ figure_b2 <- ggplot(data = rmse_data) +
   theme_publication() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Save Figure B variants
-ggsave(file.path(path.figs, "figure_b1_rmse_combined.png"), 
+# Save Figure B variants (B1 = Figure 4 in manuscript)
+ggsave(file.path(path.figs, "figure_b1_rmse_combined.png"),
        figure_b1, height = 6, width = 12, units = "in", dpi = 300)
-ggsave(file.path(path.figs, "figure_b2_error_faceted.png"), 
+ggsave("figures/Figure_4_rmse_combined.png",
+       figure_b1, height = 6, width = 12, units = "in", dpi = 300)
+ggsave(file.path(path.figs, "figure_b2_error_faceted.png"),
        figure_b2, height = 8, width = 10, units = "in", dpi = 300)
 
-cat("Figure B variants saved successfully.\n")
+cat("Figure B variants saved successfully (B1 = manuscript Figure 4).\n")
 
 # =============================================================================
-# FIGURE C: STANDARDIZED PARTIAL EFFECTS (C4 and C4b only)----
+# FIGURE C / FIGURE 5: STANDARDIZED PARTIAL EFFECTS
 # =============================================================================
+# Shows the contribution of each climate predictor to NDVI, standardized as a
+# percentage of mean growing-season NDVI. This normalization allows meaningful
+# comparison across land cover types that have very different absolute NDVI values.
+#
+# For example, a value of -0.10 means that predictor's effect reduces NDVI by
+# 10% of its average growing-season value — a biologically meaningful metric.
+#
+# Plotted for 4 drought years of interest:
+#   2005: moderate drought
+#   2012: severe flash drought (Midwest)
+#   2021: late-season drought
+#   2023: summer drought
+#
+# Main publication figures show Temperature and Drought effects only.
+# Supplemental figure includes the Lag (NDVI autocorrelation) term.
+#
+# The partial effect lines are split into 3 segments (DOY ≤90, 61-304, ≥305)
+# to handle the plotting discontinuity at growing season boundaries while
+# maintaining visual continuity through the overlap region (DOY 61-90).
 
 cat("Preparing Figure C data...\n")
 
-# Prepare partial effects data - focus on standardized versions
-# Main publication figures: Temperature and Drought only
+# Column naming convention from script 05:
+#   peDroughtStd.gsMean = drought partial effect / mean growing season NDVI
+#   peTempStd.gsMean    = temperature partial effect / mean growing season NDVI
+#   peLagStd.gsMean     = lag partial effect / mean growing season NDVI
 pe_columns_main <- c("peDroughtStd.gsMean", "peTempStd.gsMean")
-# Supplemental figure: Include lag term as well
 pe_columns_supp <- c("peDroughtStd.gsMean", "peTempStd.gsMean", "peLagStd.gsMean")
 
 partial_data <- daily_pe[, c(pe_columns_supp, "yday", "landcover", "date")]
@@ -423,7 +517,10 @@ figure_c4b <- ggplot(pe_main) +
     legend.position = "bottom"
   )
 
-# Filtered to urban high and forest
+# Filtered comparison of the two most contrasting land cover types:
+# Forest (highest NDVI, most natural) vs Urban High (lowest NDVI, most impervious)
+# This highlights how drought sensitivity differs at the extremes of the
+# urban-rural gradient — a key finding discussed in the manuscript.
 pe_filtered <- pe_main[pe_main$landcover %in% c("Forest", "Urban High"), ]
 
 figure_c4_filtered <- ggplot(pe_filtered) + 
@@ -520,12 +617,14 @@ figure_c_supplement <- ggplot(pe_supp) +
     legend.position = "bottom"
   )
 
-# Save all Figure C variants
-ggsave(file.path(path.figs, "figure_c4_partial_effects_standardized.png"), 
+# Save all Figure C variants (C4 = Figure 5 in manuscript)
+ggsave(file.path(path.figs, "figure_c4_partial_effects_standardized.png"),
        figure_c4, height = 10, width = 15, units = "in", dpi = 300)
-ggsave(file.path(path.figs, "figure_c4b_partial_effects_by_variable.png"), 
+ggsave("figures/Figure_5_partial_effects.png",
+       figure_c4, height = 10, width = 15, units = "in", dpi = 300)
+ggsave(file.path(path.figs, "figure_c4b_partial_effects_by_variable.png"),
        figure_c4b, height = 10, width = 15, units = "in", dpi = 300)
-ggsave(file.path(path.figs, "figure_c_supplement_with_lag.png"), 
+ggsave(file.path(path.figs, "figure_c_supplement_with_lag.png"),
        figure_c_supplement, height = 10, width = 15, units = "in", dpi = 300)
 
 cat("Figure C variants saved successfully:\n")
@@ -535,6 +634,8 @@ cat("- Supplemental figure: C_supplement (includes Lag term)\n")
 # =============================================================================
 # SUMMARY STATISTICS AND VALIDATION
 # =============================================================================
+# Quick diagnostic summaries printed to console for sanity-checking the figures.
+# More thorough verification is in 06c_manuscript_statistics.R.
 
 cat("Generating summary statistics...\n")
 
@@ -574,67 +675,4 @@ summary(pe_summary[pe_summary$landcover=="Urban High" & pe_summary$variable_clea
 cat("\nAll figures generated successfully!\n")
 cat("Files saved to:", path.figs, "\n")
 
-####################
-# supplemental fig numbers to get the lag influence
-
-summary(pe_supp)
-pe_supp_summary <- aggregate(
-  partial_effect_std ~ variable_clean + landcover + year, 
-  data = pe_supp,
-  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
-                      range = diff(range(x, na.rm = TRUE)))
-)
-summary(pe_supp_summary[pe_supp_summary$variable_clean=="Lag",])
-
-###################################
-# other numbers of interest
-
-pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Univariate")
-univar <- read.csv(file.path(pathSave, paste0("DailyModel_VarSelection-Univariate_ModelStats-Summaries.csv")), header=T)
-
-crop.univar <- univar[univar$landcover=="crop",]
-forest.univar <- univar[univar$landcover=="forest",]
-grass.univar <- univar[univar$landcover=="grassland",]
-urbanOpen.univar <- univar[univar$landcover=="urban-open",]
-urbanLow.univar <- univar[univar$landcover=="urban-low",]
-urbanMed.univar <- univar[univar$landcover=="urban-medium",]
-urbanHigh.univar <- univar[univar$landcover=="urban-high",]
-
-summary(crop.univar)
-
-univar_summary <- aggregate(
-  dR2 ~ landcover, 
-  data = univar,
-  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
-                      range = diff(range(x, na.rm = TRUE)))
-)
-univar_summary
-
-####################
-# RMSE Numbers
-
-summary(rmse_data)
-class(rmse_data$date_display)
-rmse_data$month <- lubridate::month(rmse_data$date_display)
-
-rmse_summary <- aggregate(
-  RMSE ~ landcover + month, 
-  data = rmse_data,
-  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
-                      range = diff(range(x, na.rm = TRUE)))
-)
-
-rmse_summary[rmse_summary$month==2,]
-
-mean(rmse_data[rmse_data$month %in% c(1,2,3),"rmse_normalized"])
-sd(rmse_data[rmse_data$month %in% c(1,2,3),"rmse_normalized"])
-
-mean(rmse_data[rmse_data$month %in% c(11,12),"rmse_normalized"])
-sd(rmse_data[rmse_data$month %in% c(11,12),"rmse_normalized"])
-
-rmseNorm_summary_gs <- aggregate(
-  rmse_normalized ~ landcover, 
-  data = rmse_data[rmse_data$in_growing_season==TRUE,],
-  FUN = function(x) c(min = min(x, na.rm = TRUE), max = max(x, na.rm = TRUE), 
-                      range = diff(range(x, na.rm = TRUE)))
-)
+# Ad-hoc statistics moved to 06c_manuscript_statistics.R

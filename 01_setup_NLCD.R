@@ -1,6 +1,26 @@
+# ==============================================================================
+# 01_setup_NLCD.R
+# ==============================================================================
+# Creates annually-resolved NLCD land cover masks for 2000-2024 and saves them
+# as Google Earth Engine assets. These masks are used by script 02 to extract
+# land-cover-specific NDVI from Landsat imagery.
+#
+# NLCD (National Land Cover Database) is published by USGS only every 2-3 years
+# (2001, 2004, 2006, 2008, 2011, 2013, 2016, 2019, 2021). Since we need a
+# land cover classification for every year in the Landsat record (2000-2024),
+# intermediate years without an NLCD product are filled by duplicating the
+# nearest available NLCD year. This creates a continuous annual land cover
+# stack so each Landsat image can be masked by its acquisition year's land
+# cover. The result is 7 binary mask assets (one per land cover class), each
+# containing 25 bands (one per year).
+#
+# This script only needs to be run once to set up the GEE assets. Downstream
+# scripts (02) load the assets by ID.
+# ==============================================================================
+
 # Script to create a harmonized nlcd layer with landcover info from 2000 - 2023 and then individual landcover class masks to apply
 # TO BE RUN ONCE!
-# Steps: 
+# Steps:
 # 1. Read in nlcd layer
 # 2. Set up dupe layers for years in between NLCD product years
 # 3. Create & save annual-year masks for each set of landcover classes
@@ -23,9 +43,13 @@ source("00_EarthEngine_HelperFunctions.R")
 ##################### 
 
 
-##################### 
+#####################
 # Color Palette etc. ----
-##################### 
+#####################
+# NLCD standard color palette for interactive map visualization. Each hex color
+# corresponds to an NLCD land cover class (see inline comments). This palette
+# matches the official USGS NLCD legend for consistency.
+
 # Setting the center point for the Arb because I think we'll have more variation
 Map$setCenter(-88.04526, 41.81513, 11);
 
@@ -60,15 +84,22 @@ nlcdvis = list(
 );
 ##################### 
 
-##################### 
+#####################
 # Read in base layers ----
-##################### 
-Chicago = ee$FeatureCollection("projects/breidyee/assets/SevenCntyChiReg") 
+#####################
+# Load the 7-county Chicago metropolitan region boundary (Cook, DuPage, Kane,
+# Kendall, Lake, McHenry, Will counties) stored as a GEE FeatureCollection.
+# This boundary defines the spatial extent for all NLCD clipping and NDVI
+# extraction throughout the project.
+Chicago = ee$FeatureCollection("projects/breidyee/assets/SevenCntyChiReg")
 ee_print(Chicago)
 
 chiBounds <- Chicago$geometry()$bounds()
 chiBBox <- ee$Geometry$BBox(-88.70738, 41.20155, -87.52453, 42.49575)
 
+# Load NLCD image collections clipped to Chicago. Two separate GEE releases
+# are needed: the 2019 release (covering 2001-2019) and the 2021 release
+# (covering 2021). Both are clipped to the Chicago region and tagged with year.
 # https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2019_REL_NLCD
 nlcdChi <- ee$ImageCollection('USGS/NLCD_RELEASES/2019_REL/NLCD')$select('landcover')$map(function(img){
     d <- ee$Date(ee$Number(img$get('system:time_start')));
@@ -112,9 +143,20 @@ nlcdProj = "EPSG:4326"
 nlcdTransform = c(30, 0, -2493045, 0, -30, 3310005)
 ##################### 
 
-##################### 
+#####################
 # Create annually-resolved image ----
-##################### 
+#####################
+# NLCD is published irregularly (2001, 2004, 2006, 2008, 2011, 2013, 2016,
+# 2019, 2021). To match each Landsat image to its year's land cover, we need
+# an annual stack from 2000-2024. Years without an NLCD product are filled by
+# duplicating the nearest available year:
+#   2000 <- 2001;  2002 <- 2001;  2003 <- 2004;  2005 <- 2006;  2007 <- 2008;
+#   2009 <- 2008;  2010 <- 2011;  2012 <- 2013;  2014 <- 2013;  2015 <- 2016;
+#   2017 <- 2016;  2018 <- 2019;  2020 <- 2019;  2022-2024 <- 2021.
+#
+# The final multi-band image (one band per year, named "YR2000" through
+# "YR2024") is saved as a GEE asset for reference, though the binary masks
+# created below are what script 02 actually uses.
 lcChi2001 <- nlcdChi$filter(ee$Filter$eq('system:index', '2001'))$first();
 # ee_print(lcChi2001)
 # Map$addLayer(lcChi2001, nlcdvis, 'NLCD Land Cover');
@@ -174,8 +216,24 @@ saveLandCover$start()
 
 ##################### 
 
-##################### 
+#####################
 # Set up masks for our key landcover classes here! ----
+#####################
+# Create binary masks for each of the 7 land cover classes used in the
+# drought sensitivity analysis. Each mask is a multi-band image (one band per
+# year, "YR2001" through "YR2024") where 1 = pixel belongs to the class and
+# masked = pixel does not. These are saved as GEE assets and loaded by script
+# 02 to isolate NDVI for each land cover type.
+#
+# NLCD codes mapped to analysis classes:
+#   Forest:       41 (Deciduous), 42 (Evergreen), 43 (Mixed)
+#   Grassland:    51 (Dwarf Shrub), 52 (Shrub/Scrub), 71 (Grassland/Herbaceous), 72 (Sedge)
+#   Crop:         81 (Pasture/Hay), 82 (Cultivated Crops)
+#   Urban-Open:   21 (Developed, Open Space)
+#   Urban-Low:    22 (Developed, Low Intensity)
+#   Urban-Medium: 23 (Developed, Medium Intensity)
+#   Urban-High:   24 (Developed, High Intensity)
+#
 # Note: This will use our Collection rather than the single image that has bands by years
 # # Forest: 41,42,43
 # # Shrub/Savanna/Grass: 51,52,53,71,72
@@ -184,7 +242,7 @@ saveLandCover$start()
 # # Low Intensity Urban: 22
 # # Medium Intensity Urban: 23
 # # High Intensity Urban: 24
-##################### 
+#####################
 
 # # Define the land cover classes and their corresponding values
 

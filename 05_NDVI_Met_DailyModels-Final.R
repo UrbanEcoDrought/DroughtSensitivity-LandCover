@@ -1,12 +1,40 @@
-# Creating a clean script to re-do the daily correlation modeling and do some prediction from it
+# 05_NDVI_Met_DailyModels-Final.R
+# ============================================================================
+# PURPOSE: Fit the 5 selected final models and extract publication-ready outputs
+#
+# Based on multivariate model selection (script 04), this script fits the top
+# model configurations across all land covers and extracts:
+#   - Model coefficients (fixed effects) per day of year
+#   - Partial effects (contribution of each predictor to predicted NDVI)
+#   - Climate-normalized partial effects (as % of mean growing season NDVI)
+#   - Model fit statistics (R², RMSE, significance)
+#
+# FINAL MODELS SELECTED:
+#   add1: SPEI 14-day + Tmax 30-day (additive) — best-ranked multivariate model
+#   add2: SPEI 30-day + Tmax 30-day (additive)
+#   int1: SPEI 30-day × Tmax 30-day (interaction)
+#   add3: SPI 30-day + Tmax 30-day (additive)
+#   int2: SPEI 30-day × Tmax 14-day (interaction)
+#
+# The primary model used for publication figures is add1 (SPEI14 + Tmax30).
+#
+# OUTPUTS:
+#   - multivarAdditive_table.csv (Table 2 in manuscript)
+#   - Per-LC model statistics CSVs
+#   - AllLandcovers combined files for figures
+#   - Partial effects files for Figure 5
+#
+# RUNTIME: Several hours per land cover
+# ============================================================================
+
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
 library(dplyr)
 
-# Settindbplyr# Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
-Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+# Setting the file paths. This may be different for your computer.
+Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
+# Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
 path.NDVI <- file.path(google.drive, "data", "data_raw")
@@ -15,6 +43,13 @@ pathSave <- file.path(google.drive, "data/processed_files/FinalDailyModel")
 
 if(!dir.exists(path.figs)) dir.create(path.figs, recursive = T)
 if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
+
+# =============================================================================
+# LOAD DATA FROM PRIOR SCRIPTS
+# =============================================================================
+# Read the merged NDVI+meteorology dataset (from script 03) and the multivariate
+# model selection stats (from script 04). These provide the data for final model
+# fitting and the multivariate rankings for Table 2 creation.
 
 # Read in the two key data frames
 ndviMet <- read.csv(file.path(google.drive,"data/processed_files/landsat_ndvi_metVars_combined.csv"))
@@ -31,7 +66,22 @@ modStatsAll$TempVar <- as.factor(modStatsAll$TempVar)
 modStatsAll$modelType <- as.factor(modStatsAll$modelType)
 summary(modStatsAll)
 
-aggLC <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType + landcover, data=modStatsAll[!modStatsAll$model %in% c("modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean, na.rm=T)
+# =============================================================================
+# CREATE TABLE 2: MULTIVARIATE ADDITIVE MODEL RANKING
+# =============================================================================
+# Aggregate multivariate model stats to growing season means (DOY 91-304) and
+# rank by delta AIC, delta R², and delta RMSE (all relative to lag-only baseline).
+# Separate rankings are produced for:
+#   - All models (additive + interaction)
+#   - Additive models only (simpler, more interpretable)
+#   - Interaction vs. additive comparisons (to assess whether interactions help)
+#   - By drought variable and by temperature variable (marginal rankings)
+#
+# The additive-only ranking is saved as multivarAdditive_table.csv (Table 2).
+# Key finding: SPEI consistently outperforms SPI in additive formulations;
+# interactions provide minimal improvement, supporting use of additive models.
+
+aggLC <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType + landcover, data=modStatsAll[!modStatsAll$model %in% c("modLag") & modStatsAll$yday>=91 & modStatsAll$yday<=304,], FUN=mean, na.rm=T)
 aggLC2 <- aggregate(cbind(dAIC, dR2, dRMSE) ~ model + DroughtVar + TempVar + modelType, data=aggLC, FUN=mean, na.rm=T)
 aggLC2$dAIC.rank[order(aggLC2$dAIC, decreasing=F)] <- 1:nrow(aggLC2)
 aggLC2$dR2.rank[order(aggLC2$dR2, decreasing=T)] <- 1:nrow(aggLC2)
@@ -92,11 +142,30 @@ mean(aggXn2$RankComb[grep("SPEI", aggXn2$DroughtVar)])
 # When no interaction, SPEI *very* consistently outperforms SPI (but diffs. very minor); when have an interaction, timescale is a bigger factor for splitting haris
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # 
+# =============================================================================
+# DEFINE AND FIT THE 5 FINAL MODELS
+# =============================================================================
+# Fit 5 model configurations for each land cover, looping over all 365 days
+# of year with a ±7-day sliding window. For each DOY window, extract:
+#   - Model fit stats: conditional R² (fixed+random), RMSE, mean error
+#   - Fixed effect coefficients, standard errors, t-values, and p-values
+#
+# Model definitions:
+#   add1: NDVI ~ SPEI14 + Tmax_30day + NDVI.Lag14d + (1|mission)
+#   add2: NDVI ~ SPEI30 + Tmax_30day + NDVI.Lag14d + (1|mission)
+#   add3: NDVI ~ SPI30day + Tmax_30day + NDVI.Lag14d + (1|mission)
+#   int1: NDVI ~ SPEI30 * Tmax_30day * NDVI.Lag14d + (1|mission)
+#   int2: NDVI ~ SPEI30 * Tmax_14day * NDVI.Lag14d + (1|mission)
+#
+# Interaction models include all main effects, two-way interactions, and the
+# three-way interaction (drought × temperature × lag), which tests whether
+# the drought-temperature synergy depends on antecedent vegetation condition.
+
+# # # # # # # # # # # # # # # # # # # # # # # # #
 # Running the models! ----
 # previously: picked 2 sets of variables for further investigation (e.g. aggXn2)
 # Purpose: How much of the power is actual sensitivity to variable selection as opposed to noise and parameter trade off?
-# # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # #
 LCtypes <- unique(ndviMet$landcover)
 modOutListAdd1 <- list()
 modOutListAdd2 <- list()
@@ -379,6 +448,14 @@ for(LC in LCtypes){
   print("") # Just kicking the label to a new line to make things cleaner
 } # End LC loop
 
+# =============================================================================
+# COMBINE RESULTS ACROSS LAND COVERS
+# =============================================================================
+# Stack per-LC model output data frames into single combined data frames for
+# each of the 5 model configurations. These combined files are used for
+# cross-land-cover comparison figures and downstream partial effects analysis.
+# The primary model (add1: SPEI14 + Tmax30) is used for all publication figures.
+
 modOutAllAdd1 <- dplyr::bind_rows(modOutListAdd1)
 modOutAllAdd2 <- dplyr::bind_rows(modOutListAdd2)
 modOutAllAdd3 <- dplyr::bind_rows(modOutListAdd3)
@@ -399,6 +476,15 @@ effectStack$effect <- gsub("tVal.", "", effectStack$effect) # making clean names
 effectStack$effect <- factor(effectStack$effect, rev( c("Drought", "Temp", "Lag", "Int")))
 effectStack$pVal <- stack(modOutAllAdd1[,grep("pVal", names(modOutAllAdd1))])[,"values"]
 effectStack$coef <- stack(modOutAllAdd1[,grep("coef", names(modOutAllAdd1))])[,"values"]
+
+# =============================================================================
+# EXPLORATORY EFFECT-SIZE VISUALIZATIONS
+# =============================================================================
+# Visualize the t-values (effect sizes) for each fixed effect across all DOY
+# and land covers. Heatmaps show where drought and temperature effects are
+# significant (p < 0.05) and their direction (green = positive effect on NDVI,
+# orange = negative). These figures help identify seasonal windows where
+# climate drivers are most important for vegetation.
 
 # Plotting results----
 
@@ -504,11 +590,29 @@ dev.off()
 # Will use Additive Model 1 for the partial effects analysis
 # add1: 14dSPEI + 30d TMAX (#1)
 
-# # # # # # # # # # # # # # # # # # # # # # # # # 
+# =============================================================================
+# PARTIAL EFFECTS ANALYSIS: CLIMATE-NORMALIZED (MEAN CONDITIONS)
+# =============================================================================
+# Partial effects translate statistical coefficients into ecologically meaningful
+# NDVI units. For each predictor, the partial effect is:
+#   partial_effect = coefficient(DOY) × mean_predictor_value(DOY)
+#
+# This section computes partial effects under MEAN (climatological normal)
+# conditions — i.e., what is the typical contribution of each predictor to
+# NDVI on an average day? This isolates the seasonal pattern of climate
+# sensitivity from year-to-year variability.
+#
+# Steps:
+#   1. Load raw GRIDMET meteorological data (SPI, SPEI, Tmax, Tmin)
+#   2. Compute daily climatological means (2000-present) for SPEI14 and Tmax30
+#   3. Compute NDVI lag climatological means per land cover
+#   4. Multiply DOY-specific model coefficients × DOY-specific climate normals
+
+# # # # # # # # # # # # # # # # # # # # # # # # #
 # Follow-up Analysis----
 # Alternate way of visualizing -- partial effects (coeficient x (mean?)value -- give impact in NDVI space) --> that would get away from stat. sig. and into acctual effect space
 # Partial effects will be the model coefficient multiplied by predictor value; For met partial effects, it will be the climatic norm
-# # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # #
 # Reading in our met vars
 ChicagolandSPI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPI.csv"))
 ChicagolandSPEI <- read.csv(file.path(google.drive, "../data/GRIDMET_data/gridmet_aggregated_data/Chicagoland_Daily_Aggregated_SPEI.csv"))
@@ -575,7 +679,19 @@ summary(chiMetNorms)
 
 dim(chiMetNorms)
 
-# # # # # # # # # # # # # # # # # # # # # # # # # 
+# =============================================================================
+# COMPUTE PARTIAL EFFECTS USING MODEL COEFFICIENTS AND DAILY MEANS
+# =============================================================================
+# Merge the climatological mean predictor values with the DOY-specific model
+# coefficients to compute partial effects under normal conditions:
+#   partial.Drought.climateNorm = coef.Drought(DOY) × mean_SPEI14(DOY)
+#   partial.Temp.climateNorm    = coef.Temp(DOY)    × mean_Tmax30(DOY)
+#   partial.Lag.climateNorm     = coef.Lag(DOY)     × mean_NDVIlag(DOY)
+#
+# The result shows how much each predictor contributes to predicted NDVI
+# on an average day, in raw NDVI units.
+
+# # # # # # # # # # # # # # # # # # # # # # # # #
 # Partial Effects----
 # generating code to calculate the partial effects throughout the different DOY for the different land cover models.
 # need to bring in the mean conditions for DOY for temp, SPEI, and for NDVI
@@ -591,6 +707,9 @@ urbanHigh.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Sta
 urbanLow.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-low.csv")))
 urbanOpen.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-open.csv")))
 urbanMedium.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-medium.csv")))
+# Forest-wet: loaded separately because it was added as a sensitivity analysis
+# after the original 7 land cover classes were run. This class captures wetland
+# forests that were previously lumped into the general "forest" category.
 forestWet.add1 <- read.csv(file.path(pathSave,paste0("DailyModel_finalModel_stats_additive_SPEI14-TMAX30_forest-wet.csv")))
 
 modOutAll <- rbind(crop.add1, forest.add1, forestWet.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
@@ -673,6 +792,19 @@ summary(modOutAll2)
 
 # saving data frame
 write.csv(modOutAll2, file.path(pathSave, paste0("DailyModel_FinalModel_modOutAdd1_Stats_climateNormPartialEffects_AllLandcovers.csv")), row.names=F)
+
+# =============================================================================
+# PARTIAL EFFECTS FOR INDIVIDUAL YEARS (DATE-SPECIFIC)
+# =============================================================================
+# Unlike the climate-normalized partial effects above (which use DOY means),
+# this section computes partial effects for each actual date using the observed
+# meteorological conditions on that date:
+#   partial.Drought.date = coef.Drought(DOY) × observed_SPEI14(date)
+#   partial.Temp.date    = coef.Temp(DOY)    × observed_Tmax30(date)
+#   partial.Lag.date     = coef.Lag(DOY)      × observed_NDVIlag(date)
+#
+# This enables year-by-year analysis of how drought and temperature drove NDVI
+# anomalies in specific years (e.g., the 2012 drought, 2005 wet year).
 
 ####################
 # Calculating Partial Effects for individual years----
@@ -764,6 +896,19 @@ pe.date.df3$partial.Lag.date <- pe.date.df3$NDVI.Lag14d*pe.date.df3$coef.Lag
 
 # pe.date.df3$peTempStd <- pe.date.df3$partial.Temp.date/pe.date.df3$NDVI
 # pe.date.df3$peDroughtStd <- pe.date.df3$partial.Drought.date/pe.date.df3$NDVI
+
+# =============================================================================
+# STANDARDIZE PARTIAL EFFECTS AS PERCENTAGE OF MEAN GROWING SEASON NDVI
+# =============================================================================
+# Raw partial effects are in NDVI units, making cross-land-cover comparison
+# difficult because baseline NDVI varies greatly (e.g., forest ~0.8 vs.
+# urban-high ~0.4). Dividing by the mean growing season (April-October) NDVI
+# for each land cover converts partial effects to a percentage scale:
+#   peDroughtStd.gsMean = partial.Drought.date / mean_GS_NDVI(landcover)
+#
+# This standardization allows direct comparison of drought sensitivity across
+# land cover types (e.g., "drought reduces crop NDVI by 5% vs. urban-high by 2%").
+# These standardized values are used in Figure 5 of the manuscript.
 
 ######
 # Alternative PE standardizing----

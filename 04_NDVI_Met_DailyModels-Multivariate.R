@@ -1,11 +1,35 @@
-# Creating a clean script to re-do the daily correlation modeling and do some prediction from it
+# 04_NDVI_Met_DailyModels-Multivariate.R
+# ============================================================================
+# PURPOSE: Multivariate model selection — test combinations of drought + temperature
+#
+# Building on the univariate results (script 03), this script tests all pairwise
+# combinations of the top drought indices (SPEI14, SPEI30, SPI30, SPI60) and
+# temperature variables (Tmax14, Tmax30, Tmax60, Tmin60) in both additive and
+# interaction formulations.
+#
+# MODEL STRUCTURE:
+#   Additive:    NDVI ~ DroughtVar + TempVar + NDVI.Lag14d + (1|mission)
+#   Interaction: NDVI ~ DroughtVar * TempVar * NDVI.Lag14d + (1|mission)
+#
+# This script also generates Table 1 (univariate summary) by aggregating
+# the univariate ALL file to growing season (DOY 91-304) means.
+#
+# OUTPUTS:
+#   - univariate_table.csv (Table 1 in manuscript)
+#   - Per-LC multivariate daily model stats
+#   - Combined multivariate ALL file
+#   - Exploratory heatmap figures
+#
+# RUNTIME: Several hours (365 × 7 LCs × 32 model combinations + lag baseline)
+# ============================================================================
+
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
 
 # Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
-Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
+# Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
 path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract")
@@ -14,6 +38,13 @@ pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Multiva
 
 if(!dir.exists(path.figs)) dir.create(path.figs, recursive = T)
 if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
+
+# =============================================================================
+# LOAD DATA FROM PRIOR SCRIPTS
+# =============================================================================
+# Read the merged NDVI+meteorology dataset (from script 03) and the univariate
+# model stats ALL file (also from script 03). These provide the foundation for
+# both the univariate table creation and multivariate model fitting.
 
 # Read in the ndviMet data file from script 3
 ndviMet <- read.csv(file.path(google.drive, "data/processed_files/landsat_ndvi_metVars_combined.csv"), header=T)
@@ -28,11 +59,26 @@ modStatsAll$model <- as.factor(modStatsAll$model)
 summary(modStatsAll)
 
 
+# =============================================================================
+# CREATE TABLE 1: UNIVARIATE MODEL RANKING (GROWING SEASON ONLY)
+# =============================================================================
+# Aggregate univariate model stats to growing season (DOY 91-304, April 1 -
+# October 31) to focus on the period when vegetation is actively growing and
+# most responsive to climate. Two-step aggregation:
+#   Step 1: Mean per model × land cover (within growing season)
+#   Step 2: Mean across all 7 land covers → one value per model
+# Rank models by ΔR² (higher=better) and ΔRMSE (lower=better), then compute
+# a combined rank. This produces Table 1 in the manuscript.
+#
+# Key finding: SPEI and SPI indices outperform temperature-only predictors,
+# with 14-30 day windows performing best. SPEI 30-day and SPEI 14-day are
+# tied for best overall rank.
+
 # Based on the corr plots, temperature variables are fairly highly correlated with each other as are SPI/SPEI.
 # 90 temp vars correlate less with shorter-term
 # Checking the stats for each var to figure out where to start
-aggLC <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + landcover, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean)
-aggYDAY <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + yday, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=90 & modStatsAll$yday<=300,], FUN=mean)
+aggLC <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + landcover, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=91 & modStatsAll$yday<=304,], FUN=mean)
+aggYDAY <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model + yday, data=modStatsAll[!modStatsAll$model %in% c("modIntOnly", "modLag") & modStatsAll$yday>=91 & modStatsAll$yday<=304,], FUN=mean)
 
 
 aggLC2 <- aggregate(cbind(dAIC, dR2, dRMSE, dRMSEper) ~ model, data=aggLC, FUN=mean)
@@ -66,6 +112,16 @@ mean(aggLC2$RankComb[grep("SPI", aggLC2$model)])
 # 30-day SPEI is the best in both R2 & RMSE with 30-day SPI in a close second; 14 days, so lets definitely start with that in our model and combine it with 30-day Tmin & Tmax; TMAX, which is the highest temp predictor; we'll test by itself as well as interactions
 
 
+# =============================================================================
+# DEFINE MULTIVARIATE MODEL COMBINATIONS
+# =============================================================================
+# Based on univariate results, select the top-performing drought and temperature
+# predictors to combine. Test 4 drought × 4 temperature × 2 model types = 32
+# multivariate models per day per land cover.
+#
+# Candidate drought variables: SPEI 14-day, SPEI 30-day, SPI 30-day, SPI 60-day
+# Candidate temperature variables: Tmax 14-day, Tmax 30-day, Tmax 60-day, Tmin 60-day
+
 LCtypes <- unique(ndviMet$landcover)
 varsDrought <- c("SPEI14", "SPEI30", "SPI30day", "SPI60day")
 varsTemp <- c("Tmax_14day", "Tmax_30day", "Tmax_60day", "Tmin_60day")
@@ -83,11 +139,23 @@ length(modNames); length(unique(modNames))
 listAIC <- listError <- listRMSE <- listR2 <- list()
 listAICd <- listError <- listRMSEd <- listR2d <- list()
 
+# =============================================================================
+# DAILY SLIDING-WINDOW MULTIVARIATE MODEL FITTING
+# =============================================================================
+# Same approach as script 03 but now fitting two-predictor models:
+#   - Additive: drought + temperature effects are independent
+#   - Interaction: allows drought × temperature synergy (e.g., heat amplifies
+#     drought effects on vegetation)
+#
+# The baseline model here is lag-only (not intercept-only as in script 03),
+# so delta metrics represent improvement from adding climate predictors
+# beyond the NDVI autocorrelation signal.
+
 for(LC in LCtypes){
   print(LC)
   # Subset the data to a single land cover type
   datLC <- ndviMet[ndviMet$landcover==LC,]
-  
+
   # Checking the autocorrelation in NDVI
   head(datLC)
   # acf(datLC$NDVI[!is.na(datLC$NDVI)])
@@ -283,6 +351,17 @@ for(LC in LCtypes){
 
 
 # Plan will be to pick the model with the best dR2/dRMSE and then compare the AICs of the interactive vs. additive models --> that shouldn't require re-running anything.
+
+# =============================================================================
+# COMBINE AND COMPARE MULTIVARIATE RESULTS
+# =============================================================================
+# Stack all land cover results, compute delta metrics relative to lag-only model.
+# Also compute interaction vs. additive comparison (dAIC.xn, dRMSE.xn, dR2.xn)
+# to determine whether drought-temperature interactions significantly improve
+# model fit beyond additive effects.
+#
+# Parse model names to extract DroughtVar, TempVar, and modelType columns
+# for downstream aggregation.
 
 #########################################
 # Comparing across days LCs and days ----

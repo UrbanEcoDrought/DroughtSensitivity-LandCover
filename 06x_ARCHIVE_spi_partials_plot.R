@@ -1,3 +1,4 @@
+# ARCHIVED — superseded by 06b_publication_figs.R
 # Creating the figures that Christy had Sketched out
 # Figure A: Significant Tstat plot for different land cover types
 # Figure B: RMSE through time for different land cover types

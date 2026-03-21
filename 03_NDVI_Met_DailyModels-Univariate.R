@@ -1,11 +1,46 @@
+# 03_NDVI_Met_DailyModels-Univariate.R
+# ============================================================================
+# PURPOSE: Univariate model selection -- tests 16 meteorological predictors of NDVI
+#
+# This script determines which single climate variable best predicts vegetation
+# greenness (NDVI) across 7 land cover types in the Chicago metro region.
+#
+# APPROACH:
+#   For each land cover type, fit 365 daily sliding-window models (+/-7 days),
+#   each comparing 16 candidate meteorological variables (SPI, SPEI, Tmax, Tmin
+#   at 14/30/60/90-day windows) plus an intercept-only and lag-only baseline.
+#   All models use linear mixed-effects (nlme::lme) with random intercept by
+#   satellite mission (Landsat 5/7/8/9) to account for inter-sensor differences.
+#
+# MODEL STRUCTURE:
+#   Intercept-only: NDVI ~ 1 + (1|mission)
+#   Lag-only:        NDVI ~ NDVI.Lag14d + (1|mission)
+#   Univariate:      NDVI ~ MetVar + NDVI.Lag14d + (1|mission)
+#
+# OUTPUTS (to Google Drive):
+#   - Per-LC daily AIC, R2, RMSE files (365 rows x 18 models)
+#   - Combined ALL file (45,990 rows: 365 days x 18 models x 7 LCs)
+#   - Summary file (means across days per model+LC, 119 rows)
+#   - Exploratory heatmap figures for each metric
+#
+# INPUTS:
+#   - NDVI data: compiled Landsat NDVI from shared Drive
+#   - Met data: GRIDMET SPI, SPEI, Tmin, Tmax from shared Drive
+#
+# RUNTIME: Several hours (365 iterations x 7 LCs x 18 models each)
+# ============================================================================
+
+# =============================================================================
+# SETUP AND FILE PATHS
+# =============================================================================
 # Creating a clean script to re-do the daily correlation modeling and do some prediction from it
 library(ggplot2)
 library(lubridate)
 library(ggcorrplot)
 library(ggsci)
 # Setting the file paths. This may be different for your computer.
-# Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
-Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
+Sys.setenv(GOOGLE_DRIVE = "G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/")
+# Sys.setenv(GOOGLE_DRIVE = "~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/")
 google.drive <- Sys.getenv("GOOGLE_DRIVE")
 
 path.NDVI <- file.path("G:/Shared drives/Urban Ecological Drought/", "data", "UrbanEcoDrought_NDVI_LocalExtract-RAW") # we haven't been the most consistent with our file paths.
@@ -15,8 +50,18 @@ pathSave <- file.path(google.drive, "data/processed_files/ModelSelection-Univari
 if(!dir.exists(path.figs)) dir.create(path.figs, recursive = T)
 if(!dir.exists(pathSave)) dir.create(pathSave, recursive = T)
 
+# =============================================================================
+# LOAD AND CLEAN NDVI DATA
+# =============================================================================
+# Read compiled Landsat NDVI time series (all missions, all land covers).
+# Key cleaning step: the original "forest" class is REMOVED and replaced by
+# "forest-wet" (renamed to "forest"). This was a deliberate decision after
+# testing showed that including woody wetlands (NLCD 90) with upland forests
+# (NLCD 41-43) did not significantly change results, and the "forest-wet"
+# sample better represents the region's actual forest composition.
+
 # # # # # # # # #
-# Juliana compiled NDVI data for us into a single file. 
+# Juliana compiled NDVI data for us into a single file.
 # We do NOT need to pull in landcover NDVI into a single file any longer
 # # # # # # # # #
 
@@ -81,6 +126,22 @@ summary(ndvi.all)
 
 # saving this for plotting later
 saveRDS(ndvi.all, file=file.path(google.drive, "data/processed_files", "landcover_ndviAll.RDS"))
+
+# =============================================================================
+# LOAD AND MERGE METEOROLOGICAL DATA
+# =============================================================================
+# Read GRIDMET-derived climate variables aggregated to the Chicagoland region:
+#   - SPI (Standardized Precipitation Index) at 14/30/60/90-day windows
+#   - SPEI (Standardized Precipitation-Evapotranspiration Index) at 14/30/60/90-day
+#   - Tmin (minimum temperature) at 14/30/60/90-day rolling means
+#   - Tmax (maximum temperature) at 14/30/60/90-day rolling means
+#
+# SPI captures precipitation anomalies only; SPEI additionally accounts for
+# evaporative demand via temperature, making it more sensitive to warming-driven
+# drought. Multiple temporal windows capture both flash drought (14-day) and
+# sustained drought (90-day) signals.
+#
+# The met data is merged with NDVI by date, creating the core analysis dataset.
 
 # reading in Trent's SPI
 # 03/26/2025 updated to new met data from trent housed here: https://drive.google.com/drive/folders/1xyvKEy72cy1n3Z5R1D5E9f1vXApUFIiI
@@ -182,6 +243,24 @@ write.csv(ndviMet, file = file.path(google.drive, "data/processed_files/landsat_
 # saveRDS(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.RDS"))
 # write.csv(ndviMet, file = file.path("processed_data/landsat_ndvi_metVars_combined.csv"), row.names=F)
 
+# =============================================================================
+# DAILY SLIDING-WINDOW MODEL FITTING (MAIN ANALYSIS LOOP)
+# =============================================================================
+# For each land cover type:
+#   1. Compute 14-day NDVI lag (mean NDVI from preceding 14 days) to capture
+#      autocorrelation in the vegetation signal
+#   2. For each day of year (1-365):
+#      a. Subset data to a +/-7 day window around the focal day (pooling all years)
+#         This gives ~15 days x ~23 years of data per model fit
+#      b. Fit intercept-only model (null/baseline)
+#      c. Fit lag-only model (NDVI ~ NDVI.Lag14d)
+#      d. For each of 16 met variables: fit NDVI ~ MetVar + NDVI.Lag14d
+#      e. Record AIC, conditional R2 (MuMIn::r.squaredGLMM), and RMSE
+#   3. Save per-LC results and compute delta metrics (improvement over intercept-only)
+#
+# The sliding window approach allows model coefficients to vary smoothly across
+# the year, capturing the fact that vegetation-climate relationships change
+# seasonally (e.g., temperature effects differ in spring green-up vs. summer peak).
 #########################################
 # Daily model MEGAloop ----
 # This is being modified from what we had before to do each var, with each timescale for each LC
@@ -410,6 +489,16 @@ for(LC in LCtypes){
 #########################################
 
 
+# =============================================================================
+# COMBINE RESULTS ACROSS LAND COVERS
+# =============================================================================
+# Stack per-LC model outputs into single dataframes.
+# Compute delta metrics relative to the intercept-only model:
+#   - dAIC: negative = improvement (lower AIC = better fit)
+#   - dRMSE: negative = improvement (lower error)
+#   - dR2: positive = improvement (more variance explained)
+#   - dRMSEper: percent change in RMSE relative to intercept-only
+# Save the combined ALL file (used by scripts 04, 05, and 06c).
 #########################################
 # Comparing across days LCs and days ----
 #########################################
@@ -505,6 +594,14 @@ png(file.path(path.figs, paste0("NDVI-ModelSelection-Univariate_AllLandcover_dR2
 plot.dR2
 dev.off()
 
+# =============================================================================
+# AGGREGATE MODEL PERFORMANCE SUMMARIES
+# =============================================================================
+# Average delta metrics across all 365 days to get a single performance score
+# per model x land cover combination. This summary is saved as the Summaries
+# file and used for quick reference. Note: this averages across ALL days of
+# year, unlike the Table 1 values which filter to growing season only.
+# Rank each model within each land cover class by dAIC, dRMSE, and dR2.
 # ---------------------
 # Aggregating across LC types & Days to get a mean value for each model --> focusing on CHANGE ----
 # ---------------------
@@ -597,6 +694,12 @@ ggplot(data=aggModelLC, aes(x=model, y=dR2) ) +
   theme_bw()
 dev.off()
 
+# =============================================================================
+# GRAND MEAN ACROSS LAND COVERS
+# =============================================================================
+# Average performance metrics across all 7 land cover types to determine
+# overall best-performing univariate predictor. This identifies which climate
+# variable most consistently predicts NDVI across the urban-rural gradient.
 # ---------------------
 # Aggregating to just the model/met var ----
 # ---------------------

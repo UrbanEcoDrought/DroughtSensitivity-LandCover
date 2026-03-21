@@ -51,4 +51,9 @@ rsconnect/
 # local storage folders
 figures/*
 processed_data/*
-input_data/* 
+input_data/*
+manuscript/*
+
+# backup and runtime artifacts
+*_backup_*/
+logs/
