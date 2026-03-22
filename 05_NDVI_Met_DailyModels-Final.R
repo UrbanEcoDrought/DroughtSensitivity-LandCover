@@ -707,12 +707,12 @@ urbanHigh.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Sta
 urbanLow.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-low.csv")))
 urbanOpen.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-open.csv")))
 urbanMedium.add1 <- read.csv(file.path(pathSave, paste0("DailyModel_FinalModel_Stats_Additive_SPEI14-TMAX30_urban-medium.csv")))
-# Forest-wet: loaded separately because it was added as a sensitivity analysis
-# after the original 7 land cover classes were run. This class captures wetland
-# forests that were previously lumped into the general "forest" category.
-forestWet.add1 <- read.csv(file.path(pathSave,paste0("DailyModel_finalModel_stats_additive_SPEI14-TMAX30_forest-wet.csv")))
+# NOTE: "forest" here includes woody wetlands (NLCD 41+42+43+90). The original
+# upland-only "forest" (41+42+43) was dropped and "forest-wet" was renamed to
+# "forest" in script 03 after testing showed no significant difference in NDVI
+# or drought sensitivity. See commits bbbdfea, 0a9b48e for history.
 
-modOutAll <- rbind(crop.add1, forest.add1, forestWet.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
+modOutAll <- rbind(crop.add1, forest.add1, grassland.add1, urbanHigh.add1, urbanLow.add1, urbanOpen.add1, urbanMedium.add1)
 modOutAll$modelType <- as.factor("additive")
 summary(modOutAll)                      
 

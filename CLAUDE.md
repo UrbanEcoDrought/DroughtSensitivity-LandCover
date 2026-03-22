@@ -21,7 +21,9 @@ Scripts are numbered and must run in order. Script 00 is `source()`'d by 01 and 
 07_table_creation.R               ← publication tables
 ```
 
-`05x_`, `06x_`, and `XX_` scripts are sensitivity tests or exploratory utilities.
+`run_pipeline.R` is the master script that runs 03→04→05→06b→06c→07 in sequence with logging.
+
+Sensitivity tests, exploratory utilities, and superseded scripts live in `archive/`.
 
 ## Key Architecture Decisions
 
@@ -35,16 +37,14 @@ Scripts are numbered and must run in order. Script 00 is `source()`'d by 01 and 
 7 classes derived from NLCD, ordered from rural to urban in figures:
 Crop, Forest, Grassland, Urban-Open, Urban-Low, Urban-Medium, Urban-High.
 
-Note: The old "forest" class was replaced by "forest-wet" (renamed to "forest") in data cleaning (see script 03).
+Note: The "forest" class uses NLCD codes 41 (Deciduous) + 42 (Evergreen) + 43 (Mixed) + 90 (Woody Wetlands). This composite was originally extracted as "forest-wet" in GEE to test whether including woody wetlands changed results — it did not (t-test p=0.60, annual r=0.997). The original upland-only "forest" (41/42/43) is dropped and "forest-wet" is renamed to "forest" in script 03. See commits `bbbdfea` and `0a9b48e` for history.
 
 ## File Paths
 
-Scripts use hardcoded Google Drive paths that vary by machine:
-- `~/Google Drive/My Drive/UrbanEcoDrought/`
-- `~/Google Drive/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI/`
-- `G:/Shared drives/Urban Ecological Drought/`
+Production scripts use the `G:` mount for Google Drive:
+- `G:/Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Daily Corrs/`
 
-The `GOOGLE_DRIVE` variable is set at the top of scripts that need it.
+The `GOOGLE_DRIVE` variable is set at the top of scripts that need it. Some archived scripts still reference the old `~/Google Drive/` paths.
 
 ## Key R Packages
 
